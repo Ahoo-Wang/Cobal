@@ -51,11 +51,13 @@ class NodeStateTest {
     @Test
     fun `node should auto-recover when recoverAt is passed`() {
         val node = SimpleNodeForState("node-1")
-        val nodeState = DefaultNodeState(node)
+        val pastPolicy = NodeFailurePolicy {
+            NodeFailureDecision(Instant.now().minus(1, ChronoUnit.SECONDS))
+        }
+        val nodeState = DefaultNodeState(node, failurePolicy = pastPolicy)
         val error = NodeError(ErrorCategory.RATE_LIMITED, RuntimeException("429"))
         nodeState.onFailure(error)
-        nodeState.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
-        // Accessing status after recoverAt should trigger auto-recovery
+        // Since recoverAt is in the past, status should immediately be AVAILABLE
         val status = nodeState.status
         status.assert().isEqualTo(NodeStatus.AVAILABLE)
         nodeState.available.assert().isTrue()

@@ -1,7 +1,5 @@
 package me.ahoo.cobal
 
-import kotlinx.coroutines.flow.Flow
-
 typealias NodeId = String
 
 interface Node {
@@ -10,8 +8,6 @@ interface Node {
         get() = 1
 }
 
-interface NodeEvent
-
-interface WatchableNode : Node {
-    val watch: Flow<NodeEvent>
+interface ModelNode<MODEL> : Node {
+    val model: MODEL
 }

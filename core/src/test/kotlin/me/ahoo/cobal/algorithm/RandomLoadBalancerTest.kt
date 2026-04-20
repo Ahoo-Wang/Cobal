@@ -25,10 +25,18 @@ class RandomLoadBalancerTest {
         val node2 = SimpleNode("node-2")
         val lb = RandomLoadBalancer("random-lb", listOf(node1, node2))
         val error = NodeError(ErrorCategory.RATE_LIMITED, RuntimeException("429"))
-        val selected = lb.choose()
-        selected.onFailure(error)
-        val chosen2 = lb.choose()
-        chosen2.node.id.assert().isEqualTo("node-2")
+
+        // Mark both nodes as unavailable
+        val selected1 = lb.choose()
+        selected1.onFailure(error)
+
+        val selected2 = lb.choose()
+        selected2.onFailure(error)
+
+        // Now no nodes should be available
+        org.junit.jupiter.api.assertThrows<AllNodesUnavailableException> {
+            lb.choose()
+        }
     }
 
     @Test

@@ -12,7 +12,8 @@ class WeightedRoundRobinLoadBalancerTest {
         // node-1 should be chosen 3 times, node-2 once in a cycle of 4
         val counts = mutableMapOf("node-1" to 0, "node-2" to 0)
         repeat(12) { // 3 cycles
-            counts[lb.choose().node.id] = counts[lb.choose().node.id]!! + 1
+            val chosen = lb.choose()
+            counts[chosen.node.id] = counts[chosen.node.id]!! + 1
         }
         counts["node-1"].assert().isEqualTo(9) // 3 * 3
         counts["node-2"].assert().isEqualTo(3)  // 3 * 1

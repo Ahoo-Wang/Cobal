@@ -11,3 +11,9 @@ interface Node {
 interface ModelNode<MODEL> : Node {
     val model: MODEL
 }
+
+class DefaultModelNode<MODEL>(
+    override val id: NodeId,
+    override val weight: Int = 1,
+    override val model: MODEL
+) : ModelNode<MODEL>

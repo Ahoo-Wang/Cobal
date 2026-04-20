@@ -27,10 +27,15 @@ enum class ErrorCategory {
     NETWORK
 }
 
+open class CobalError(
+    message: String?,
+    override val cause: Throwable?
+) : Exception(message, cause)
+
 class NodeError(
     val category: ErrorCategory,
     override val cause: Throwable
-) : Exception(cause?.message, cause)
+) : CobalError(cause?.message, cause)
 
 data class NodeFailureDecision(val recoverAt: Instant)
 

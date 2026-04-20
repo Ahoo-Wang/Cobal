@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class LoadBalancerRegistryTest {
     @Test
     fun `getOrCreate should create and cache instance`() {
-        val registry = LoadBalancerRegistry()
+        val registry = DefaultLoadBalancerRegistry()
         val lb: LoadBalancer<SimpleNode> = registry.getOrCreate("lb-1") {
             RandomLoadBalancer("lb-1", listOf(SimpleNode("node-1")))
         }
@@ -19,7 +19,7 @@ class LoadBalancerRegistryTest {
 
     @Test
     fun `remove should evict cached instance`() {
-        val registry = LoadBalancerRegistry()
+        val registry = DefaultLoadBalancerRegistry()
         registry.getOrCreate<SimpleNode>("lb-1") {
             RandomLoadBalancer("lb-1", listOf(SimpleNode("node-1")))
         }
@@ -29,7 +29,7 @@ class LoadBalancerRegistryTest {
 
     @Test
     fun `contains should return true for existing id`() {
-        val registry = LoadBalancerRegistry()
+        val registry = DefaultLoadBalancerRegistry()
         registry.getOrCreate<SimpleNode>("lb-1") {
             RandomLoadBalancer("lb-1", listOf(SimpleNode("node-1")))
         }

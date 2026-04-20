@@ -16,6 +16,6 @@ class WeightedRoundRobinLoadBalancerTest {
             counts[chosen.node.id] = counts[chosen.node.id]!! + 1
         }
         counts["node-1"].assert().isEqualTo(9) // 3 * 3
-        counts["node-2"].assert().isEqualTo(3)  // 3 * 1
+        counts["node-2"].assert().isEqualTo(3) // 3 * 1
     }
 }

@@ -11,7 +11,9 @@ class LoadBalancerRegistryTest {
         val lb: LoadBalancer<SimpleNode> = registry.getOrCreate("lb-1") {
             RandomLoadBalancer("lb-1", listOf(SimpleNode("node-1")))
         }
-        val lb2: LoadBalancer<SimpleNode> = registry.getOrCreate("lb-1") { throw RuntimeException("should not be called") }
+        val lb2: LoadBalancer<SimpleNode> = registry.getOrCreate("lb-1") {
+            throw IllegalStateException("should not be called")
+        }
         lb.assert().isSameAs(lb2)
     }
 

@@ -1,6 +1,11 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.*
+import me.ahoo.cobal.DefaultNodeState
+import me.ahoo.cobal.LoadBalancer
+import me.ahoo.cobal.LoadBalancerId
+import me.ahoo.cobal.Node
+import me.ahoo.cobal.NodeId
+import me.ahoo.cobal.NodeState
 
 class WeightedRoundRobinLoadBalancer<NODE : Node>(
     override val id: LoadBalancerId,

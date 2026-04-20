@@ -1,6 +1,8 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.*
+import me.ahoo.cobal.ErrorCategory
+import me.ahoo.cobal.NodeError
+import me.ahoo.cobal.SimpleNode
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 

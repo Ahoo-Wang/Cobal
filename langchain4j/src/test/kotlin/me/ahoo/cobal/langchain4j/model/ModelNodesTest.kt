@@ -2,7 +2,6 @@ package me.ahoo.cobal.langchain4j.model
 
 import dev.langchain4j.model.chat.ChatModel
 import io.mockk.mockk
-import me.ahoo.cobal.*
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 

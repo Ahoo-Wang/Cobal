@@ -42,10 +42,11 @@ class LoadBalancedStreamingChatModel(
             }
         }
 
+        @Suppress("TooGenericExceptionCaught")
         try {
             selected.node.model.chat(prompt, retryingHandler)
-        } catch (e: Exception) {
-            val nodeError = toNodeError(e)
+        } catch (e: Throwable) {
+            val nodeError = toNodeError(e as? Exception ?: RuntimeException(e.message, e))
             selected.onFailure(nodeError)
             doChatWithRetry(prompt, handler, remainingRetries - 1)
         }

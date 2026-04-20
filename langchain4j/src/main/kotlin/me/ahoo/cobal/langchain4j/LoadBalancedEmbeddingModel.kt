@@ -18,10 +18,11 @@ class LoadBalancedEmbeddingModel(
     override fun embedAll(textSegments: List<TextSegment>): Response<List<Embedding>> {
         repeat(maxRetries) { attempt ->
             val selected = loadBalancer.choose()
+            @Suppress("TooGenericExceptionCaught")
             try {
                 return selected.node.model.embedAll(textSegments)
-            } catch (e: Exception) {
-                val nodeError = toNodeError(e)
+            } catch (e: Throwable) {
+                val nodeError = toNodeError(e as? Exception ?: RuntimeException(e.message, e))
                 selected.onFailure(nodeError)
                 if (attempt == maxRetries - 1) {
                     throw AllNodesUnavailableException(loadBalancer.id)

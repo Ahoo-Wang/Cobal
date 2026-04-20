@@ -1,6 +1,7 @@
 package me.ahoo.cobal.langchain4j
 
-import me.ahoo.cobal.*
+import me.ahoo.cobal.ErrorCategory
+import me.ahoo.cobal.NodeError
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Instant

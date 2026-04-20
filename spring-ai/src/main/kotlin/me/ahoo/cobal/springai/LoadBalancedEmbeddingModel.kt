@@ -10,6 +10,7 @@ import org.springframework.ai.embedding.EmbeddingModel
 import org.springframework.ai.embedding.EmbeddingRequest
 import org.springframework.ai.embedding.EmbeddingResponse
 
+@Suppress("TooGenericExceptionCaught")
 class LoadBalancedEmbeddingModel(
     private val loadBalancer: LoadBalancer<EmbeddingModelNode>,
     private val maxRetries: Int = 3
@@ -28,6 +29,7 @@ class LoadBalancedEmbeddingModel(
         throw AllNodesUnavailableException(loadBalancer.id)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     override fun call(request: EmbeddingRequest): EmbeddingResponse {
         repeat(maxRetries) {
             val selected = loadBalancer.choose()

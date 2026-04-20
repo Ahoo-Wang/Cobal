@@ -1,6 +1,8 @@
 package me.ahoo.cobal.springai
 
-import me.ahoo.cobal.*
+import me.ahoo.cobal.ErrorCategory
+import me.ahoo.cobal.NodeFailureDecision
+import me.ahoo.cobal.NodeFailurePolicy
 import java.time.Duration
 import java.time.Instant
 

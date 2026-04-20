@@ -9,6 +9,7 @@ import org.springframework.ai.audio.transcription.AudioTranscriptionPrompt
 import org.springframework.ai.audio.transcription.AudioTranscriptionResponse
 import org.springframework.ai.audio.transcription.TranscriptionModel
 
+@Suppress("TooGenericExceptionCaught")
 class LoadBalancedAudioTranscriptionModel(
     private val loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
     private val maxRetries: Int = 3

@@ -2,6 +2,7 @@
 # Libs
 reactor = "3.7.3"
 spring-boot = "4.0.5"
+spring-ai-model = "1.1.0-M4"
 jackson-annotations = "2.21"
 langchain4j = "1.13.0"
 # Test
@@ -37,6 +38,7 @@ spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-aut
 spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "spring-boot" }
 spring-boot-autoconfigure-processor = { module = "org.springframework.boot:spring-boot-autoconfigure-processor", version.ref = "spring-boot" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
+spring-ai-model = { module = "org.springframework.ai:spring-ai-model", version.ref = "spring-ai-model" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

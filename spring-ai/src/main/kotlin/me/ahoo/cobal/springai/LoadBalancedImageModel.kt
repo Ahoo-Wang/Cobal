@@ -9,6 +9,7 @@ import org.springframework.ai.image.ImageModel
 import org.springframework.ai.image.ImagePrompt
 import org.springframework.ai.image.ImageResponse
 
+@Suppress("TooGenericExceptionCaught")
 class LoadBalancedImageModel(
     private val loadBalancer: LoadBalancer<ImageModelNode>,
     private val maxRetries: Int = 3

@@ -1,5 +1,6 @@
 package me.ahoo.cobal.algorithm
 
+import me.ahoo.cobal.AllNodesUnavailableException
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.Node
 import me.ahoo.cobal.NodeError

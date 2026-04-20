@@ -1,5 +1,6 @@
 package me.ahoo.cobal.algorithm
 
+import me.ahoo.cobal.AllNodesUnavailableException
 import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.LoadBalancerId

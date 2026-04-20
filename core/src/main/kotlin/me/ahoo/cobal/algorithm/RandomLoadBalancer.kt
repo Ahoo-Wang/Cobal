@@ -1,5 +1,6 @@
 package me.ahoo.cobal.algorithm
 
+import me.ahoo.cobal.AllNodesUnavailableException
 import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.LoadBalancerId
@@ -7,10 +8,6 @@ import me.ahoo.cobal.Node
 import me.ahoo.cobal.NodeId
 import me.ahoo.cobal.NodeState
 import java.util.concurrent.ThreadLocalRandom
-
-class AllNodesUnavailableException(val loadBalancerId: LoadBalancerId) : RuntimeException(
-    "All nodes unavailable in load balancer: $loadBalancerId"
-)
 
 class RandomLoadBalancer<NODE : Node>(
     override val id: LoadBalancerId,

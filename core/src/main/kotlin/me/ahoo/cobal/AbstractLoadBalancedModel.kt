@@ -11,8 +11,10 @@ abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
         repeat(maxRetries) {
             val selected = loadBalancer.choose()
             try {
-                return block(selected.node.model)
-            } catch (e: Throwable) {
+                val result = block(selected.node.model)
+                selected.onSuccess()
+                return result
+            } catch (e: Exception) {
                 val nodeError = errorConverter.convert(selected.node.id, e)
                 selected.onFailure(nodeError)
             }

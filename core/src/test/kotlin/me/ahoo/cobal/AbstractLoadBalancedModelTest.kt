@@ -104,4 +104,23 @@ class AbstractLoadBalancedModelTest {
         }
         state.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
     }
+
+    @Test
+    fun `executeWithRetry should call onSuccess on success`() {
+        val model = StringModel("test")
+        val node = StringModelNode("node-1", model = model)
+        val state = DefaultNodeState(node, circuitOpenThreshold = 2)
+        state.onFailure(RateLimitError(node.id, null))
+
+        val lb = object : LoadBalancer<StringModelNode> {
+            override val id = "test-lb"
+            override val states = listOf(state)
+            override fun choose() = state
+        }
+        val lbModel = TestLoadBalancedModel(lb, maxRetries = 1)
+
+        val result = lbModel.execute { it.call() }
+        result.assert().isEqualTo("test")
+        state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
+    }
 }

@@ -6,4 +6,6 @@ repositories {
 dependencies {
     api(project(":core"))
     api(libs.spring.ai.model)
+    implementation(libs.reactor.core)
+    testImplementation(libs.reactor.test)
 }

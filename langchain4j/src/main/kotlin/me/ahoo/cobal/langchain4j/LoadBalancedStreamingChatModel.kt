@@ -30,6 +30,7 @@ class LoadBalancedStreamingChatModel(
 
         val retryingHandler = object : StreamingChatResponseHandler {
             override fun onCompleteResponse(finalResponse: ChatResponse) {
+                selected.onSuccess()
                 handler.onCompleteResponse(finalResponse)
             }
 
@@ -43,7 +44,7 @@ class LoadBalancedStreamingChatModel(
         @Suppress("TooGenericExceptionCaught")
         try {
             selected.node.model.chat(prompt, retryingHandler)
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             val nodeError = LangChain4jErrorConverter.convert(selected.node.id, e)
             selected.onFailure(nodeError)
             doChatWithRetry(prompt, handler, remainingRetries - 1)

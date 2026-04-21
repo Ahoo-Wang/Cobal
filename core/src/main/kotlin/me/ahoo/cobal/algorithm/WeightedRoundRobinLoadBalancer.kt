@@ -20,6 +20,7 @@ class WeightedRoundRobinLoadBalancer<NODE : Node>(
         currentWeight = maxWeight
     }
 
+    @Synchronized
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
         while (true) {
             currentIndex = (currentIndex + 1) % available.size
@@ -30,7 +31,8 @@ class WeightedRoundRobinLoadBalancer<NODE : Node>(
                 }
             }
             val candidate = available[currentIndex]
-            if (weightMap[candidate.node.id]!! >= currentWeight) {
+            val weight = weightMap[candidate.node.id] ?: return candidate
+            if (weight >= currentWeight) {
                 return candidate
             }
         }

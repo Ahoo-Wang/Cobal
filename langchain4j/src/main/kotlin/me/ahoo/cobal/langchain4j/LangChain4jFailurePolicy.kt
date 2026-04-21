@@ -10,10 +10,12 @@ import java.time.Instant
 val LangChain4jFailurePolicy = NodeFailurePolicy { error ->
     when (error) {
         is RateLimitError -> NodeFailureDecision(
-            recoverAt = Instant.now() + Duration.ofSeconds(30)
+            recoverAt = Instant.now() + Duration.ofSeconds(30),
+            error = error
         )
         is AuthenticationError -> NodeFailureDecision(
-            recoverAt = Instant.now() + Duration.ofHours(1)
+            recoverAt = Instant.now() + Duration.ofHours(1),
+            error = error
         )
         else -> null
     }

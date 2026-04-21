@@ -3,6 +3,7 @@ package me.ahoo.cobal
 import java.time.Instant
 
 abstract class CobalError(
+    val nodeId: NodeId? = null,
     message: String?,
     override val cause: Throwable?
 ) : RuntimeException(message, cause)
@@ -10,10 +11,10 @@ abstract class CobalError(
 interface RetriableError
 
 open class NodeError(
-    val nodeId: NodeId,
+    nodeId: NodeId,
     message: String?,
     cause: Throwable?
-) : CobalError(message, cause)
+) : CobalError(nodeId, message, cause)
 
 class RateLimitError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Rate limited [$nodeId]", cause), RetriableError
 class ServerError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Server error [$nodeId]", cause), RetriableError
@@ -24,7 +25,7 @@ class InvalidRequestError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId,
 
 class AllNodesUnavailableError(
     val loadBalancerId: LoadBalancerId
-) : CobalError("All nodes unavailable in load balancer: $loadBalancerId", null)
+) : CobalError(null, "All nodes unavailable in load balancer: $loadBalancerId", null)
 
 data class NodeFailureDecision(val recoverAt: Instant)
 
@@ -38,5 +39,13 @@ fun interface NodeFailurePolicy {
                 else -> null
             }
         }
+    }
+}
+
+fun interface ErrorConverter {
+    fun convert(nodeId: NodeId, error: Throwable): CobalError?
+
+    companion object {
+        val Default = ErrorConverter { _, _ -> null }
     }
 }

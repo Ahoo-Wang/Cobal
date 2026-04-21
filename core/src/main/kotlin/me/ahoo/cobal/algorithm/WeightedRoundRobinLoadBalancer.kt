@@ -1,16 +1,15 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.AllNodesUnavailableError
-import me.ahoo.cobal.LoadBalancer
+import me.ahoo.cobal.AbstractLoadBalancer
 import me.ahoo.cobal.LoadBalancerId
 import me.ahoo.cobal.Node
 import me.ahoo.cobal.NodeId
 import me.ahoo.cobal.NodeState
 
 class WeightedRoundRobinLoadBalancer<NODE : Node>(
-    override val id: LoadBalancerId,
-    override val states: List<NodeState<NODE>>
-) : LoadBalancer<NODE> {
+    id: LoadBalancerId,
+    states: List<NodeState<NODE>>
+) : AbstractLoadBalancer<NODE>(id, states) {
 
     private var currentIndex = 0
     private var currentWeight: Int
@@ -21,12 +20,7 @@ class WeightedRoundRobinLoadBalancer<NODE : Node>(
         currentWeight = maxWeight
     }
 
-    override fun choose(): NodeState<NODE> {
-        val available = availableStates
-        if (available.isEmpty()) {
-            throw AllNodesUnavailableError(id)
-        }
-
+    override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
         while (true) {
             currentIndex = (currentIndex + 1) % available.size
             if (currentIndex == 0) {

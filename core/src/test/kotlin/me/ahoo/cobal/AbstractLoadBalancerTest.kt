@@ -1,0 +1,47 @@
+package me.ahoo.cobal
+
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+
+class AbstractLoadBalancerTest {
+
+    private class FixedLoadBalancer<NODE : Node>(
+        id: LoadBalancerId,
+        states: List<NodeState<NODE>>,
+        private val fixed: NodeState<NODE>
+    ) : AbstractLoadBalancer<NODE>(id, states) {
+        override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> = fixed
+    }
+
+    @Test
+    fun `choose should delegate to doChoose when nodes available`() {
+        val node = SimpleNode("node-1")
+        val state = DefaultNodeState(node)
+        val lb = FixedLoadBalancer("test-lb", listOf(state), state)
+        lb.choose().assert().isEqualTo(state)
+    }
+
+    @Test
+    fun `choose should throw AllNodesUnavailableError when no nodes available`() {
+        val node = SimpleNode("node-1")
+        val state = DefaultNodeState(node)
+        val error = RateLimitError(node.id, RuntimeException("429"))
+        state.onFailure(error)
+
+        val lb = FixedLoadBalancer("test-lb", listOf(state), state)
+        val ex = assertThrows<AllNodesUnavailableError> { lb.choose() }
+        ex.loadBalancerId.assert().isEqualTo("test-lb")
+    }
+
+    @Test
+    fun `choose should throw AllNodesUnavailableError when states empty`() {
+        val lb = object : AbstractLoadBalancer<SimpleNode>("empty-lb", emptyList()) {
+            override fun doChoose(available: List<NodeState<SimpleNode>>): NodeState<SimpleNode> {
+                throw AssertionError("doChoose should not be called when no nodes available")
+            }
+        }
+        val ex = assertThrows<AllNodesUnavailableError> { lb.choose() }
+        ex.loadBalancerId.assert().isEqualTo("empty-lb")
+    }
+}

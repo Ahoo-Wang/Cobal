@@ -4,6 +4,8 @@ typealias LoadBalancerId = String
 
 interface LoadBalancer<NODE : Node> {
     val id: LoadBalancerId
-    val nodes: List<NODE>
-    fun choose(): NODE
+    val states: List<NodeState<NODE>>
+    val availableStates: List<NodeState<NODE>>
+        get() = states.filter { it.available }
+    fun choose(): NodeState<NODE>
 }

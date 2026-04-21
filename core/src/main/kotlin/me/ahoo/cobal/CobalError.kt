@@ -37,7 +37,10 @@ class AllNodesUnavailableError(
     val loadBalancerId: LoadBalancerId
 ) : CobalError("All nodes unavailable in load balancer: $loadBalancerId", null)
 
-data class NodeFailureDecision(val recoverAt: Instant)
+data class NodeFailureDecision(
+    val recoverAt: Instant,
+    val error: CobalError
+)
 
 fun interface NodeFailurePolicy {
     fun evaluate(error: CobalError): NodeFailureDecision?
@@ -45,7 +48,7 @@ fun interface NodeFailurePolicy {
     companion object {
         val Default = NodeFailurePolicy { error ->
             when (error) {
-                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
+                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30), error)
                 else -> null
             }
         }

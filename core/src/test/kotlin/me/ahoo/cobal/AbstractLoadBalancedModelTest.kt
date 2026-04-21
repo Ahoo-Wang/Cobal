@@ -3,7 +3,6 @@ package me.ahoo.cobal
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 
 class AbstractLoadBalancedModelTest {
 
@@ -38,7 +37,7 @@ class AbstractLoadBalancedModelTest {
 
         val result = lbModel.execute { it.call() }
 
-        assertEquals("test", result)
+        result.assert().isEqualTo("test")
     }
 
     @Test
@@ -63,7 +62,7 @@ class AbstractLoadBalancedModelTest {
 
         val result = lbModel.execute { it.call() }
 
-        assertEquals("success", result)
+        result.assert().isEqualTo("success")
     }
 
     @Test

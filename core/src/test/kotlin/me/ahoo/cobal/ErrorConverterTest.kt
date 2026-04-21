@@ -2,8 +2,6 @@ package me.ahoo.cobal
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ErrorConverterTest {
 
@@ -14,8 +12,8 @@ class ErrorConverterTest {
         }
         val cause = RuntimeException("unknown")
         val result = converter.convert("node-1", cause)
-        assertTrue(result is NodeError)
-        assertEquals("node-1", result.nodeId)
+        result.assert().isInstanceOf(NodeError::class.java)
+        (result as NodeError).nodeId.assert().isEqualTo("node-1")
     }
 
     @Test
@@ -28,7 +26,7 @@ class ErrorConverterTest {
         }
         val cause = RuntimeException("rate limited")
         val result = converter.convert("node-1", cause)
-        assertEquals("node-1", (result as? NodeError)?.nodeId)
+        (result as? NodeError)?.nodeId.assert().isEqualTo("node-1")
     }
 
     @Test
@@ -36,7 +34,7 @@ class ErrorConverterTest {
         val converter = ErrorConverter.Default
         val cause = RuntimeException("test")
         val result = converter.convert("node-1", cause)
-        assertTrue(result is NodeError)
-        result.nodeId.assert().isEqualTo("node-1")
+        result.assert().isInstanceOf(NodeError::class.java)
+        (result as NodeError).nodeId.assert().isEqualTo("node-1")
     }
 }

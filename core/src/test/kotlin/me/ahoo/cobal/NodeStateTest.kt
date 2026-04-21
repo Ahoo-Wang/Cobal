@@ -1,8 +1,7 @@
 package me.ahoo.cobal
 
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 
 class SimpleNodeForState(override val id: NodeId, override val weight: Int = 1) : Node
 
@@ -15,8 +14,8 @@ class NodeStateTest {
 
         val error = RateLimitError(node.id, null)
         state.onFailure(error)
-        assertEquals(NodeStatus.UNAVAILABLE, state.status)
-        assertFalse(state.available)
+        state.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
+        state.available.assert().isFalse()
     }
 
     @Test
@@ -26,7 +25,7 @@ class NodeStateTest {
 
         val error = AuthenticationError(node.id, null)
         state.onFailure(error)
-        assertEquals(NodeStatus.AVAILABLE, state.status)
-        assertEquals(true, state.available)
+        state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
+        state.available.assert().isTrue()
     }
 }

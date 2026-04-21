@@ -1,7 +1,7 @@
 package me.ahoo.cobal
 
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 class LoadBalancerTest {
 
@@ -14,7 +14,7 @@ class LoadBalancerTest {
             override val states: List<NodeState<DefaultNode>> = listOf(state)
             override fun choose(): NodeState<DefaultNode> = states.first()
         }
-        assertEquals(listOf(state), lb.states)
-        assertEquals(listOf(state), lb.availableStates)
+        lb.states.assert().isEqualTo(listOf(state))
+        lb.availableStates.assert().isEqualTo(listOf(state))
     }
 }

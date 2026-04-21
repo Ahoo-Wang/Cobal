@@ -18,37 +18,6 @@ sealed interface NodeEvent {
     data class Recovered(override val nodeId: NodeId) : NodeEvent
 }
 
-enum class ErrorCategory {
-    RATE_LIMITED,
-    SERVER_ERROR,
-    AUTHENTICATION,
-    INVALID_REQUEST,
-    TIMEOUT,
-    NETWORK
-}
-
-class NodeError(
-    val category: ErrorCategory,
-    override val cause: Throwable
-) : CobalError(cause?.message, cause)
-
-data class NodeFailureDecision(val recoverAt: Instant)
-
-fun interface NodeFailurePolicy {
-    fun evaluate(error: NodeError): NodeFailureDecision?
-
-    companion object {
-        val Default = NodeFailurePolicy { error ->
-            when (error.category) {
-                ErrorCategory.INVALID_REQUEST -> null
-                ErrorCategory.RATE_LIMITED -> NodeFailureDecision(Instant.now() + java.time.Duration.ofSeconds(30))
-                ErrorCategory.SERVER_ERROR -> NodeFailureDecision(Instant.MAX)
-                else -> NodeFailureDecision(Instant.MAX)
-            }
-        }
-    }
-}
-
 interface NodeState<NODE : Node> {
     val node: NODE
     val watch: Flow<NodeEvent>
@@ -56,7 +25,7 @@ interface NodeState<NODE : Node> {
     val available: Boolean
         get() = status == NodeStatus.AVAILABLE
 
-    fun onFailure(error: NodeError)
+    fun onFailure(error: CobalError)
 }
 
 class DefaultNodeState<NODE : Node>(
@@ -94,11 +63,11 @@ class DefaultNodeState<NODE : Node>(
             }
         }
 
-    override fun onFailure(error: NodeError) {
+    override fun onFailure(error: CobalError) {
         failureCount++
         failurePolicy.evaluate(error)?.let { decision ->
             this.recoverAt = decision.recoverAt
-            events.tryEmit(NodeEvent.MarkedUnavailable(node.id, decision.recoverAt))
+            events.tryEmit(NodeEvent.MarkedUnavailable(node.id, recoverAt!!))
         }
     }
 }

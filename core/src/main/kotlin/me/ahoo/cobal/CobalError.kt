@@ -3,7 +3,6 @@ package me.ahoo.cobal
 import java.time.Instant
 
 abstract class CobalError(
-    val nodeId: NodeId? = null,
     message: String?,
     override val cause: Throwable?
 ) : RuntimeException(message, cause)
@@ -11,21 +10,32 @@ abstract class CobalError(
 interface RetriableError
 
 open class NodeError(
-    nodeId: NodeId,
+    val nodeId: NodeId,
     message: String?,
     cause: Throwable?
-) : CobalError(nodeId, message, cause)
+) : CobalError(message, cause)
 
-class RateLimitError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Rate limited [$nodeId]", cause), RetriableError
-class ServerError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Server error [$nodeId]", cause), RetriableError
-class TimeoutError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Timeout [$nodeId]", cause), RetriableError
-class NetworkError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Network error [$nodeId]", cause), RetriableError
-class AuthenticationError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Auth failed [$nodeId]", cause)
-class InvalidRequestError(nodeId: NodeId, cause: Throwable?) : NodeError(nodeId, "Invalid request [$nodeId]", cause)
+class RateLimitError(nodeId: NodeId, cause: Throwable?) :
+    NodeError(nodeId, "Rate limited [$nodeId]", cause), RetriableError
+
+class ServerError(nodeId: NodeId, cause: Throwable?) :
+    NodeError(nodeId, "Server error [$nodeId]", cause), RetriableError
+
+class TimeoutError(nodeId: NodeId, cause: Throwable?) :
+    NodeError(nodeId, "Timeout [$nodeId]", cause), RetriableError
+
+class NetworkError(nodeId: NodeId, cause: Throwable?) :
+    NodeError(nodeId, "Network error [$nodeId]", cause), RetriableError
+
+class AuthenticationError(nodeId: NodeId, cause: Throwable?) :
+    NodeError(nodeId, "Auth failed [$nodeId]", cause)
+
+class InvalidRequestError(nodeId: NodeId, cause: Throwable?) :
+    NodeError(nodeId, "Invalid request [$nodeId]", cause)
 
 class AllNodesUnavailableError(
     val loadBalancerId: LoadBalancerId
-) : CobalError(null, "All nodes unavailable in load balancer: $loadBalancerId", null)
+) : CobalError("All nodes unavailable in load balancer: $loadBalancerId", null)
 
 data class NodeFailureDecision(val recoverAt: Instant)
 

@@ -25,7 +25,7 @@ class ErrorConverterTest {
         }
         val cause = RuntimeException("rate limited")
         val result = converter.convert("node-1", cause)
-        assertEquals("node-1", result!!.nodeId)
+        assertEquals("node-1", (result as NodeError).nodeId)
     }
 
     @Test

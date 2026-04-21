@@ -1,7 +1,8 @@
 package me.ahoo.cobal.langchain4j
 
-import me.ahoo.cobal.ErrorCategory
-import me.ahoo.cobal.NodeError
+import me.ahoo.cobal.AuthenticationError
+import me.ahoo.cobal.RateLimitError
+import me.ahoo.cobal.ServerError
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -9,7 +10,7 @@ import java.time.Instant
 class LangChain4jFailurePolicyTest {
     @Test
     fun `RATE_LIMITED should return decision with recoverAt`() {
-        val error = NodeError(ErrorCategory.RATE_LIMITED, RuntimeException("429"))
+        val error = RateLimitError("node-1", RuntimeException("429"))
         val decision = LangChain4jFailurePolicy.evaluate(error)
         decision.assert().isNotNull()
         decision!!.recoverAt.assert().isAfter(Instant.now())
@@ -17,14 +18,14 @@ class LangChain4jFailurePolicyTest {
 
     @Test
     fun `AUTHENTICATION should return long recoverAt`() {
-        val error = NodeError(ErrorCategory.AUTHENTICATION, RuntimeException("401"))
+        val error = AuthenticationError("node-1", RuntimeException("401"))
         val decision = LangChain4jFailurePolicy.evaluate(error)
         decision.assert().isNotNull()
     }
 
     @Test
     fun `SERVER_ERROR should return null (no state change)`() {
-        val error = NodeError(ErrorCategory.SERVER_ERROR, RuntimeException("500"))
+        val error = ServerError("node-1", RuntimeException("500"))
         val decision = LangChain4jFailurePolicy.evaluate(error)
         decision.assert().isNull()
     }

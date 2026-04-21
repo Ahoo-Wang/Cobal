@@ -6,6 +6,7 @@ import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.model.output.Response
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.EmbeddingModelNode
 import me.ahoo.test.asserts.assert
@@ -18,7 +19,8 @@ class LoadBalancedEmbeddingModelTest {
         every { mockModel.embedAll(any<List<TextSegment>>()) } returns Response.from(listOf(Embedding.from(listOf(0.1f, 0.2f))))
 
         val node = EmbeddingModelNode("node-1", model = mockModel)
-        val lb = RandomLoadBalancer("lb", listOf(node))
+        val state = DefaultNodeState(node)
+        val lb = RandomLoadBalancer("lb", listOf(state))
         val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxRetries = 1)
         lbEmbedding.assert().isNotNull()
     }

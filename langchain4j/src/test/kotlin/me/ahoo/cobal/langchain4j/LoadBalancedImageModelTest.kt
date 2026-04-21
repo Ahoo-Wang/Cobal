@@ -5,6 +5,7 @@ import dev.langchain4j.model.image.ImageModel
 import dev.langchain4j.model.output.Response
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.ImageModelNode
 import me.ahoo.test.asserts.assert
@@ -18,7 +19,8 @@ class LoadBalancedImageModelTest {
         every { mockModel.generate(any<String>()) } returns Response.from(image)
 
         val node = ImageModelNode("node-1", model = mockModel)
-        val lb = RandomLoadBalancer("lb", listOf(node))
+        val state = DefaultNodeState(node)
+        val lb = RandomLoadBalancer("lb", listOf(state))
         val lbImage = LoadBalancedImageModel(lb, maxRetries = 1)
         lbImage.assert().isNotNull()
     }

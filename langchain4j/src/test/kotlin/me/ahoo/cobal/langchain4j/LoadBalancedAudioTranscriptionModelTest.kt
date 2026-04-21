@@ -5,6 +5,7 @@ import dev.langchain4j.model.audio.AudioTranscriptionRequest
 import dev.langchain4j.model.audio.AudioTranscriptionResponse
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.AudioTranscriptionModelNode
 import me.ahoo.test.asserts.assert
@@ -18,7 +19,8 @@ class LoadBalancedAudioTranscriptionModelTest {
             AudioTranscriptionResponse.from("transcribed")
 
         val node = AudioTranscriptionModelNode("node-1", model = mockModel)
-        val lb = RandomLoadBalancer("lb", listOf(node))
+        val state = DefaultNodeState(node)
+        val lb = RandomLoadBalancer("lb", listOf(state))
         val lbAudio = LoadBalancedAudioTranscriptionModel(lb, maxRetries = 1)
         lbAudio.assert().isNotNull()
     }

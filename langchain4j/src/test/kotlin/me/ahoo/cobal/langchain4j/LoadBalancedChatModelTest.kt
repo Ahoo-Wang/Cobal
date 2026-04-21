@@ -9,6 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.cobal.AllNodesUnavailableError
+import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.ChatModelNode
 import me.ahoo.test.asserts.assert
@@ -25,7 +26,8 @@ class LoadBalancedChatModelTest {
         every { mockModel.chat(any<ChatRequest>()) } returns response
 
         val node = ChatModelNode("node-1", model = mockModel)
-        val lb = RandomLoadBalancer("lb", listOf(node))
+        val state = DefaultNodeState(node)
+        val lb = RandomLoadBalancer("lb", listOf(state))
         val lbChat = LoadBalancedChatModel(lb, maxRetries = 1)
         val request = ChatRequest.builder()
             .messages(listOf(UserMessage.from("Hi")))
@@ -42,7 +44,8 @@ class LoadBalancedChatModelTest {
         every { failingModel.chat(any<ChatRequest>()) } throws RuntimeException("error")
 
         val node = ChatModelNode("node-1", model = failingModel)
-        val lb = RandomLoadBalancer("lb", listOf(node))
+        val state = DefaultNodeState(node)
+        val lb = RandomLoadBalancer("lb", listOf(state))
         val lbChat = LoadBalancedChatModel(lb, maxRetries = 1)
         val request = ChatRequest.builder()
             .messages(listOf(UserMessage.from("Hi")))

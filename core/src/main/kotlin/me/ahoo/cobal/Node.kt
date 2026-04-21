@@ -8,6 +8,11 @@ interface Node {
         get() = 1
 }
 
+data class DefaultNode(
+    override val id: NodeId,
+    override val weight: Int = 1,
+) : Node
+
 interface ModelNode<MODEL> : Node {
     val model: MODEL
 }
@@ -15,5 +20,5 @@ interface ModelNode<MODEL> : Node {
 class DefaultModelNode<MODEL>(
     override val id: NodeId,
     override val weight: Int = 1,
-    override val model: MODEL
+    override val model: MODEL,
 ) : ModelNode<MODEL>

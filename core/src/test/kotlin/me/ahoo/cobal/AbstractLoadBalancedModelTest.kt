@@ -7,24 +7,19 @@ import kotlin.test.assertEquals
 
 class AbstractLoadBalancedModelTest {
 
-    private class StringModel(val name: String, val shouldFail: Boolean = false) {
+    class StringModel(val name: String, val shouldFail: Boolean = false) {
         fun call(): String {
             if (shouldFail) error("fail")
             return name
         }
     }
 
-    private class StringModelNode(
-        override val id: NodeId,
-        override val model: StringModel
-    ) : ModelNode<StringModel> {
-        override val weight: Int = 1
-    }
+    typealias StringModelNode = DefaultModelNode<StringModel>
 
     private class TestLoadBalancedModel(
         loadBalancer: LoadBalancer<StringModelNode>,
         maxRetries: Int = 3,
-        errorConverter: ErrorConverter = ErrorConverter.Default
+        errorConverter: ErrorConverter = ErrorConverter.Default,
     ) : AbstractLoadBalancedModel<StringModelNode, StringModel>(loadBalancer, maxRetries, errorConverter) {
         fun <T> execute(block: (StringModel) -> T): T = executeWithRetry(block)
     }
@@ -32,7 +27,7 @@ class AbstractLoadBalancedModelTest {
     @Test
     fun `executeWithRetry should return result on success`() {
         val model = StringModel("test")
-        val node = StringModelNode("node-1", model)
+        val node = StringModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
         val lb = object : LoadBalancer<StringModelNode> {
             override val id = "test-lb"
@@ -50,8 +45,8 @@ class AbstractLoadBalancedModelTest {
     fun `executeWithRetry should retry on failure`() {
         val failingModel = StringModel("fail", shouldFail = true)
         val successModel = StringModel("success")
-        val failNode = StringModelNode("node-1", failingModel)
-        val successNode = StringModelNode("node-2", successModel)
+        val failNode = StringModelNode("node-1", model = failingModel)
+        val successNode = StringModelNode("node-2", model = successModel)
         val failState = DefaultNodeState(failNode)
         val successState = DefaultNodeState(successNode)
 
@@ -74,7 +69,7 @@ class AbstractLoadBalancedModelTest {
     @Test
     fun `executeWithRetry should throw AllNodesUnavailableError when retries exhausted`() {
         val failingModel = StringModel("fail")
-        val failNode = StringModelNode("node-1", failingModel)
+        val failNode = StringModelNode("node-1", model = failingModel)
         val failState = DefaultNodeState(failNode)
 
         val lb = object : LoadBalancer<StringModelNode> {
@@ -93,7 +88,7 @@ class AbstractLoadBalancedModelTest {
     @Test
     fun `executeWithRetry should convert error via ErrorConverter`() {
         val model = StringModel("test")
-        val node = StringModelNode("node-1", model)
+        val node = StringModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
         val customError = RateLimitError("node-1", RuntimeException("429"))
         val converter = ErrorConverter { _, _ -> customError }

@@ -1,15 +1,15 @@
 package me.ahoo.cobal.algorithm
 
+import me.ahoo.cobal.DefaultNode
 import me.ahoo.cobal.DefaultNodeState
-import me.ahoo.cobal.SimpleNode
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class WeightedRoundRobinLoadBalancerTest {
     @Test
     fun `weighted round robin should respect node weights`() {
-        val node1 = SimpleNode("node-1", weight = 3)
-        val node2 = SimpleNode("node-2", weight = 1)
+        val node1 = DefaultNode("node-1", weight = 3)
+        val node2 = DefaultNode("node-2", weight = 1)
         val state1 = DefaultNodeState(node1)
         val state2 = DefaultNodeState(node2)
         val lb = WeightedRoundRobinLoadBalancer("wrr-lb", listOf(state1, state2))

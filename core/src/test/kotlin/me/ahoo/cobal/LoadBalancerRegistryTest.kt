@@ -8,12 +8,12 @@ class LoadBalancerRegistryTest {
     @Test
     fun `getOrCreate should create and cache instance`() {
         val registry = DefaultLoadBalancerRegistry()
-        val node1 = SimpleNode("node-1")
+        val node1 = DefaultNode("node-1")
         val state1 = DefaultNodeState(node1)
-        val lb: LoadBalancer<SimpleNode> = registry.getOrCreate("lb-1") {
+        val lb: LoadBalancer<DefaultNode> = registry.getOrCreate("lb-1") {
             RandomLoadBalancer("lb-1", listOf(state1))
         }
-        val lb2: LoadBalancer<SimpleNode> = registry.getOrCreate("lb-1") {
+        val lb2: LoadBalancer<DefaultNode> = registry.getOrCreate("lb-1") {
             throw IllegalStateException("should not be called")
         }
         lb.assert().isSameAs(lb2)
@@ -22,9 +22,9 @@ class LoadBalancerRegistryTest {
     @Test
     fun `remove should evict cached instance`() {
         val registry = DefaultLoadBalancerRegistry()
-        val node1 = SimpleNode("node-1")
+        val node1 = DefaultNode("node-1")
         val state1 = DefaultNodeState(node1)
-        registry.getOrCreate<SimpleNode>("lb-1") {
+        registry.getOrCreate<DefaultNode>("lb-1") {
             RandomLoadBalancer("lb-1", listOf(state1))
         }
         registry.remove("lb-1")
@@ -34,9 +34,9 @@ class LoadBalancerRegistryTest {
     @Test
     fun `contains should return true for existing id`() {
         val registry = DefaultLoadBalancerRegistry()
-        val node1 = SimpleNode("node-1")
+        val node1 = DefaultNode("node-1")
         val state1 = DefaultNodeState(node1)
-        registry.getOrCreate<SimpleNode>("lb-1") {
+        registry.getOrCreate<DefaultNode>("lb-1") {
             RandomLoadBalancer("lb-1", listOf(state1))
         }
         registry.contains("lb-1").assert().isTrue()

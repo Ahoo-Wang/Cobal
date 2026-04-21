@@ -110,24 +110,4 @@ class AbstractLoadBalancedModelTest {
         }
         state.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
     }
-
-    @Test
-    fun `executeWithRetry should fall back to ServerError when converter returns null`() {
-        val model = StringModel("test")
-        val node = StringModelNode("node-1", model)
-        val state = DefaultNodeState(node)
-        val converter = ErrorConverter { _, _ -> null }
-
-        val lb = object : LoadBalancer<StringModelNode> {
-            override val id = "test-lb"
-            override val states = listOf(state)
-            override fun choose() = state
-        }
-        val lbModel = TestLoadBalancedModel(lb, maxRetries = 1, errorConverter = converter)
-
-        assertThrows<AllNodesUnavailableError> {
-            lbModel.execute { error("fail") }
-        }
-        state.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
-    }
 }

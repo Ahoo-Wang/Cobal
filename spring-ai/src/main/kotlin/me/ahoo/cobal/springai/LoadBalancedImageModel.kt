@@ -35,7 +35,10 @@ class LoadBalancedImageModel(
         fun toNodeError(nodeId: String, e: Exception): CobalError {
             return when {
                 e.message?.contains("429") == true -> RateLimitError(nodeId, e)
-                e.message?.contains("401") == true || e.message?.contains("403") == true -> AuthenticationError(nodeId, e)
+                e.message?.contains("401") == true || e.message?.contains("403") == true -> AuthenticationError(
+                    nodeId,
+                    e
+                )
                 e.message?.contains("400") == true -> InvalidRequestError(nodeId, e)
                 else -> ServerError(nodeId, e)
             }

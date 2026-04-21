@@ -18,4 +18,3 @@ val LangChain4jFailurePolicy = NodeFailurePolicy { error ->
         else -> null
     }
 }
-

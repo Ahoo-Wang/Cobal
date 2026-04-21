@@ -40,7 +40,8 @@ class LoadBalancedStreamingChatModel(
             }
 
             override fun onError(error: Throwable) {
-                val nodeError = toNodeError(selected.node.id, error as? Exception ?: RuntimeException(error.message, error))
+                val nodeError =
+                    toNodeError(selected.node.id, error as? Exception ?: RuntimeException(error.message, error))
                 selected.onFailure(nodeError)
                 doChatWithRetry(prompt, handler, remainingRetries - 1)
             }

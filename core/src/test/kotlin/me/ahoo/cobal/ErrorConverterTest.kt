@@ -9,7 +9,7 @@ class ErrorConverterTest {
     @Test
     fun `ErrorConverter returns null when cannot convert`() {
         val converter = ErrorConverter { nodeId, error ->
-            if (error is RateLimitError) error else null
+            error as? RateLimitError
         }
         val cause = RuntimeException("unknown")
         assertNull(converter.convert("node-1", cause))
@@ -25,7 +25,7 @@ class ErrorConverterTest {
         }
         val cause = RuntimeException("rate limited")
         val result = converter.convert("node-1", cause)
-        assertEquals("node-1", (result as NodeError).nodeId)
+        assertEquals("node-1", (result as? NodeError)?.nodeId)
     }
 
     @Test

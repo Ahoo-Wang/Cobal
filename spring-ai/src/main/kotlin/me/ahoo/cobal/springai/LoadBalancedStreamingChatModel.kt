@@ -10,11 +10,11 @@ import reactor.core.publisher.Flux
 
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
-    private val maxRetries: Int = 3,
+    private val maxAttempts: Int = 3,
 ) : StreamingChatModel {
 
     override fun stream(prompt: Prompt): Flux<ChatResponse> {
-        return doStreamWithRetry(prompt, maxRetries)
+        return doStreamWithRetry(prompt, maxAttempts)
     }
 
     private fun doStreamWithRetry(prompt: Prompt, remainingRetries: Int): Flux<ChatResponse> {
@@ -23,13 +23,13 @@ class LoadBalancedStreamingChatModel(
         }
 
         val selected = loadBalancer.choose()
-        var emitted = false
+        val emitted = java.util.concurrent.atomic.AtomicBoolean(false)
 
         return selected.node.model.stream(prompt)
-            .doOnNext { emitted = true }
+            .doOnNext { emitted.set(true) }
             .doOnComplete { selected.onSuccess() }
             .onErrorResume { error ->
-                if (emitted) {
+                if (emitted.get()) {
                     Flux.error(error)
                 } else {
                     val nodeError = SpringAiErrorConverter.convert(selected.node.id, error)

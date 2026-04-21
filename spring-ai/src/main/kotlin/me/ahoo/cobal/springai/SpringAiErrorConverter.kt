@@ -12,18 +12,20 @@ import me.ahoo.cobal.ServerError
 import me.ahoo.cobal.TimeoutError
 
 object SpringAiErrorConverter : ErrorConverter {
+    private const val MAX_CAUSE_DEPTH = 5
+
     override fun convert(nodeId: NodeId, error: Throwable): CobalError {
         return matchFromChain(nodeId, error) ?: NodeError(nodeId, error.message, error)
     }
 
     @Suppress("CyclomaticComplexMethod")
     private fun matchFromChain(nodeId: NodeId, error: Throwable, depth: Int = 0): CobalError? {
-        if (depth > 5) return null
+        if (depth > MAX_CAUSE_DEPTH) return null
         val msg = error.message
         return when {
-            msg?.contains("429") == true -> RateLimitError(nodeId, error)
-            msg?.contains("401") == true || msg?.contains("403") == true -> AuthenticationError(nodeId, error)
-            msg?.contains("400") == true -> InvalidRequestError(nodeId, error)
+            msg.containsStatus("429") -> RateLimitError(nodeId, error)
+            msg.containsStatus("401") || msg.containsStatus("403") -> AuthenticationError(nodeId, error)
+            msg.containsStatus("400") -> InvalidRequestError(nodeId, error)
             isServerErrorStatus(msg) -> ServerError(nodeId, error)
             msg?.contains("timeout", ignoreCase = true) == true -> TimeoutError(nodeId, error)
             isNetworkError(msg, error) -> NetworkError(nodeId, error)
@@ -34,11 +36,14 @@ object SpringAiErrorConverter : ErrorConverter {
         }
     }
 
+    private fun String?.containsStatus(status: String): Boolean =
+        this != null && (contains(" $status ") || contains("$status:") || contains("$status\n") || contains("HTTP $status") || contains("Status $status"))
+
     private fun isServerErrorStatus(msg: String?): Boolean =
-        msg?.contains("500") == true ||
-            msg?.contains("502") == true ||
-            msg?.contains("503") == true ||
-            msg?.contains("504") == true
+        msg.containsStatus("500") ||
+            msg.containsStatus("502") ||
+            msg.containsStatus("503") ||
+            msg.containsStatus("504")
 
     private fun isNetworkError(msg: String?, error: Throwable): Boolean =
         msg?.contains("network", ignoreCase = true) == true ||

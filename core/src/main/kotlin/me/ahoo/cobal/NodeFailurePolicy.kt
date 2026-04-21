@@ -1,19 +1,20 @@
 package me.ahoo.cobal
 
+import java.time.Duration
 import java.time.Instant
 
 data class NodeFailureDecision(
     val recoverAt: Instant,
-    val error: CobalError,
 )
 
 fun interface NodeFailurePolicy {
     fun evaluate(error: CobalError): NodeFailureDecision?
 
-    companion object {
-        val Default = NodeFailurePolicy { error ->
-            when (error) {
-                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30), error)
+    object Default : NodeFailurePolicy {
+        override fun evaluate(error: CobalError): NodeFailureDecision? {
+            return when (error) {
+                is RateLimitError -> NodeFailureDecision(Instant.now() + Duration.ofSeconds(30))
+                is AuthenticationError -> NodeFailureDecision(Instant.now() + Duration.ofHours(1))
                 else -> null
             }
         }

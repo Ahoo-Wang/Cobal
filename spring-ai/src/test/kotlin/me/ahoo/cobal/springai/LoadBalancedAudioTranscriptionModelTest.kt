@@ -21,7 +21,7 @@ class LoadBalancedAudioTranscriptionModelTest {
         val node = AudioTranscriptionModelNode("node-1", model = mockModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbAudio = LoadBalancedAudioTranscriptionModel(lb, maxRetries = 1)
+        val lbAudio = LoadBalancedAudioTranscriptionModel(lb, maxAttempts = 1)
 
         val result = lbAudio.call(mockk())
         result.assert().isNotNull()

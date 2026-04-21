@@ -1,7 +1,7 @@
 [versions]
 # Libs
 reactor = "3.7.3"
-spring-boot = "4.0.5"
+spring-boot = "3.4.5"
 spring-ai-model = "1.1.0-M4"
 jackson-annotations = "2.21"
 langchain4j = "1.13.0"

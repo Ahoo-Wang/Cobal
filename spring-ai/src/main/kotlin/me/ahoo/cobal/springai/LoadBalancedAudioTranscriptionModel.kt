@@ -9,13 +9,13 @@ import org.springframework.ai.audio.transcription.TranscriptionModel
 
 class LoadBalancedAudioTranscriptionModel(
     loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
-    maxRetries: Int = 3
+    maxAttempts: Int = 3
 ) : AbstractLoadBalancedModel<
     AudioTranscriptionModelNode,
     TranscriptionModel
     >(
     loadBalancer,
-    maxRetries,
+    maxAttempts,
     SpringAiErrorConverter
 ),
     TranscriptionModel {

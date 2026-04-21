@@ -75,7 +75,7 @@ class NodeStateTest {
         val clock = MutableClock(Instant.parse("2026-01-01T00:00:00Z"))
         val testPolicy = NodeFailurePolicy { error ->
             when (error) {
-                is RetriableError -> NodeFailureDecision(clock.instant().plusSeconds(30), error)
+                is RetriableError -> NodeFailureDecision(clock.instant().plusSeconds(30))
                 else -> null
             }
         }
@@ -97,7 +97,7 @@ class NodeStateTest {
         val clock = MutableClock(Instant.parse("2026-01-01T00:00:00Z"))
         val testPolicy = NodeFailurePolicy { error ->
             when (error) {
-                is RetriableError -> NodeFailureDecision(clock.instant().plusSeconds(30), error)
+                is RetriableError -> NodeFailureDecision(clock.instant().plusSeconds(30))
                 else -> null
             }
         }

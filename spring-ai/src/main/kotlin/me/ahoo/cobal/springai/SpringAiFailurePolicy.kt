@@ -1,22 +1,5 @@
 package me.ahoo.cobal.springai
 
-import me.ahoo.cobal.AuthenticationError
-import me.ahoo.cobal.NodeFailureDecision
 import me.ahoo.cobal.NodeFailurePolicy
-import me.ahoo.cobal.RateLimitError
-import java.time.Duration
-import java.time.Instant
 
-val SpringAiFailurePolicy = NodeFailurePolicy { error ->
-    when (error) {
-        is RateLimitError -> NodeFailureDecision(
-            recoverAt = Instant.now() + Duration.ofSeconds(30),
-            error = error
-        )
-        is AuthenticationError -> NodeFailureDecision(
-            recoverAt = Instant.now() + Duration.ofHours(1),
-            error = error
-        )
-        else -> null
-    }
-}
+val SpringAiFailurePolicy: NodeFailurePolicy = NodeFailurePolicy.Default

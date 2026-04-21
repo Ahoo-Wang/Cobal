@@ -24,7 +24,7 @@ class LoadBalancedChatModelTest {
         val node = ChatModelNode("node-1", model = mockModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbChat = LoadBalancedChatModel(lb, maxRetries = 1)
+        val lbChat = LoadBalancedChatModel(lb, maxAttempts = 1)
         val prompt = mockk<Prompt>()
 
         val chatResponse = lbChat.call(prompt)
@@ -41,7 +41,7 @@ class LoadBalancedChatModelTest {
         val node = ChatModelNode("node-1", model = failingModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbChat = LoadBalancedChatModel(lb, maxRetries = 1)
+        val lbChat = LoadBalancedChatModel(lb, maxAttempts = 1)
         val prompt = mockk<Prompt>()
 
         assertThrows<AllNodesUnavailableError> {

@@ -23,7 +23,7 @@ class LoadBalancedImageModelTest {
         val node = ImageModelNode("node-1", model = mockModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbImage = LoadBalancedImageModel(lb, maxRetries = 1)
+        val lbImage = LoadBalancedImageModel(lb, maxAttempts = 1)
 
         val result = lbImage.generate("a cat")
         result.assert().isNotNull()
@@ -38,7 +38,7 @@ class LoadBalancedImageModelTest {
         val node = ImageModelNode("node-1", model = failingModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbImage = LoadBalancedImageModel(lb, maxRetries = 1)
+        val lbImage = LoadBalancedImageModel(lb, maxAttempts = 1)
 
         assertThrows<AllNodesUnavailableError> {
             lbImage.generate("a cat")

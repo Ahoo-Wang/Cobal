@@ -26,7 +26,7 @@ class LoadBalancedEmbeddingModelTest {
         val node = EmbeddingModelNode("node-1", model = mockModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxRetries = 1)
+        val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxAttempts = 1)
 
         val result = lbEmbedding.embedAll(listOf(TextSegment.from("hello")))
         result.assert().isNotNull()
@@ -41,7 +41,7 @@ class LoadBalancedEmbeddingModelTest {
         val node = EmbeddingModelNode("node-1", model = failingModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxRetries = 1)
+        val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxAttempts = 1)
 
         assertThrows<AllNodesUnavailableError> {
             lbEmbedding.embedAll(listOf(TextSegment.from("hello")))

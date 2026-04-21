@@ -9,11 +9,11 @@ import me.ahoo.cobal.langchain4j.model.StreamingChatModelNode
 
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
-    private val maxRetries: Int = 3,
+    private val maxAttempts: Int = 3,
 ) : StreamingChatModel {
 
     override fun chat(prompt: String, handler: StreamingChatResponseHandler) {
-        doChatWithRetry(prompt, handler, maxRetries)
+        doChatWithRetry(prompt, handler, maxAttempts)
     }
 
     private fun doChatWithRetry(

@@ -28,6 +28,21 @@ class WeightedRoundRobinLoadBalancerTest {
     }
 
     @Test
+    fun `choose should skip unavailable node`() {
+        val node1 = DefaultNode("node-1", weight = 3)
+        val node2 = DefaultNode("node-2", weight = 1)
+        val state1 = DefaultNodeState(node1)
+        val state2 = DefaultNodeState(node2)
+        val lb = WeightedRoundRobinLoadBalancer("wrr-lb", listOf(state1, state2))
+
+        state2.onFailure(me.ahoo.cobal.RateLimitError(node2.id, RuntimeException("429")))
+
+        repeat(12) {
+            lb.choose().node.id.assert().isEqualTo("node-1")
+        }
+    }
+
+    @Test
     fun `concurrent choose should be thread-safe`() {
         val node1 = DefaultNode("node-1", weight = 3)
         val node2 = DefaultNode("node-2", weight = 1)

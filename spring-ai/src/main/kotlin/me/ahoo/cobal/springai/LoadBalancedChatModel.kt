@@ -9,8 +9,8 @@ import org.springframework.ai.chat.prompt.Prompt
 
 class LoadBalancedChatModel(
     loadBalancer: LoadBalancer<ChatModelNode>,
-    maxRetries: Int = 3
-) : AbstractLoadBalancedModel<ChatModelNode, ChatModel>(loadBalancer, maxRetries, SpringAiErrorConverter),
+    maxAttempts: Int = 3
+) : AbstractLoadBalancedModel<ChatModelNode, ChatModel>(loadBalancer, maxAttempts, SpringAiErrorConverter),
     ChatModel {
 
     override fun call(prompt: Prompt): ChatResponse =

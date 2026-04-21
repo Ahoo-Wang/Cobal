@@ -18,7 +18,7 @@ class LoadBalancedStreamingChatModelTest {
         val node = StreamingChatModelNode("node-1", model = mockModel)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbChat = LoadBalancedStreamingChatModel(lb, maxRetries = 1)
+        val lbChat = LoadBalancedStreamingChatModel(lb, maxAttempts = 1)
         lbChat.assert().isNotNull()
     }
 }

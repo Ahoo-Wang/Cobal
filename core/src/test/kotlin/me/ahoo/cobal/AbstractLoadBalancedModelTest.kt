@@ -17,9 +17,9 @@ class AbstractLoadBalancedModelTest {
 
     private class TestLoadBalancedModel(
         loadBalancer: LoadBalancer<StringModelNode>,
-        maxRetries: Int = 3,
+        maxAttempts: Int = 3,
         errorConverter: ErrorConverter = ErrorConverter.Default,
-    ) : AbstractLoadBalancedModel<StringModelNode, StringModel>(loadBalancer, maxRetries, errorConverter) {
+    ) : AbstractLoadBalancedModel<StringModelNode, StringModel>(loadBalancer, maxAttempts, errorConverter) {
         fun <T> execute(block: (StringModel) -> T): T = executeWithRetry(block)
     }
 
@@ -58,7 +58,7 @@ class AbstractLoadBalancedModelTest {
                 return if (callCount == 1) failState else successState
             }
         }
-        val lbModel = TestLoadBalancedModel(lb, maxRetries = 2)
+        val lbModel = TestLoadBalancedModel(lb, maxAttempts = 2)
 
         val result = lbModel.execute { it.call() }
 
@@ -76,7 +76,7 @@ class AbstractLoadBalancedModelTest {
             override val states = listOf(failState)
             override fun choose() = failState
         }
-        val lbModel = TestLoadBalancedModel(lb, maxRetries = 1)
+        val lbModel = TestLoadBalancedModel(lb, maxAttempts = 1)
 
         val ex = assertThrows<AllNodesUnavailableError> {
             lbModel.execute { error("always fails") }
@@ -97,7 +97,7 @@ class AbstractLoadBalancedModelTest {
             override val states = listOf(state)
             override fun choose() = state
         }
-        val lbModel = TestLoadBalancedModel(lb, maxRetries = 1, errorConverter = converter)
+        val lbModel = TestLoadBalancedModel(lb, maxAttempts = 1, errorConverter = converter)
 
         assertThrows<AllNodesUnavailableError> {
             lbModel.execute { error("fail") }
@@ -117,7 +117,7 @@ class AbstractLoadBalancedModelTest {
             override val states = listOf(state)
             override fun choose() = state
         }
-        val lbModel = TestLoadBalancedModel(lb, maxRetries = 1)
+        val lbModel = TestLoadBalancedModel(lb, maxAttempts = 1)
 
         val result = lbModel.execute { it.call() }
         result.assert().isEqualTo("test")

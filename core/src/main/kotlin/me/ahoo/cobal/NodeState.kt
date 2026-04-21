@@ -45,35 +45,37 @@ class DefaultNodeState<NODE : Node>(
 
     override val watch: Flow<NodeEvent> = events.asSharedFlow()
 
-    override val status: NodeStatus
-        get() = synchronized(this) {
-            when {
-                circuitOpened -> {
-                    val currentRecoverAt = recoverAt
-                    if (currentRecoverAt != null && !currentRecoverAt.isAfter(clock.instant())) {
-                        NodeStatus.CIRCUIT_HALF_OPEN
-                    } else {
-                        NodeStatus.CIRCUIT_OPEN
-                    }
-                }
-                failureCount >= circuitOpenThreshold -> {
-                    circuitOpened = true
+    private fun computeStatus(): NodeStatus {
+        return when {
+            circuitOpened -> {
+                val currentRecoverAt = recoverAt
+                if (currentRecoverAt != null && !currentRecoverAt.isAfter(clock.instant())) {
+                    NodeStatus.CIRCUIT_HALF_OPEN
+                } else {
                     NodeStatus.CIRCUIT_OPEN
                 }
-                else -> {
-                    val currentRecoverAt = recoverAt
-                    when {
-                        currentRecoverAt == Instant.MAX -> NodeStatus.AVAILABLE
-                        currentRecoverAt != null && currentRecoverAt.isAfter(clock.instant()) -> NodeStatus.UNAVAILABLE
-                        else -> NodeStatus.AVAILABLE
-                    }
+            }
+            failureCount >= circuitOpenThreshold -> {
+                circuitOpened = true
+                NodeStatus.CIRCUIT_OPEN
+            }
+            else -> {
+                val currentRecoverAt = recoverAt
+                when {
+                    currentRecoverAt == Instant.MAX -> NodeStatus.UNAVAILABLE
+                    currentRecoverAt != null && currentRecoverAt.isAfter(clock.instant()) -> NodeStatus.UNAVAILABLE
+                    else -> NodeStatus.AVAILABLE
                 }
             }
         }
+    }
+
+    override val status: NodeStatus
+        get() = synchronized(this) { computeStatus() }
 
     override fun onFailure(error: CobalError) {
         synchronized(this) {
-            val currentStatus = status
+            val currentStatus = computeStatus()
             if (currentStatus == NodeStatus.CIRCUIT_HALF_OPEN) {
                 circuitOpened = true
                 failurePolicy.evaluate(error)?.let { decision ->
@@ -96,7 +98,7 @@ class DefaultNodeState<NODE : Node>(
 
     override fun onSuccess() {
         synchronized(this) {
-            val currentStatus = status
+            val currentStatus = computeStatus()
             if (currentStatus == NodeStatus.CIRCUIT_HALF_OPEN || currentStatus == NodeStatus.UNAVAILABLE) {
                 failureCount = 0
                 circuitOpened = false

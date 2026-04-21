@@ -10,8 +10,8 @@ import org.springframework.ai.embedding.EmbeddingResponse
 
 class LoadBalancedEmbeddingModel(
     loadBalancer: LoadBalancer<EmbeddingModelNode>,
-    maxRetries: Int = 3
-) : AbstractLoadBalancedModel<EmbeddingModelNode, EmbeddingModel>(loadBalancer, maxRetries, SpringAiErrorConverter),
+    maxAttempts: Int = 3
+) : AbstractLoadBalancedModel<EmbeddingModelNode, EmbeddingModel>(loadBalancer, maxAttempts, SpringAiErrorConverter),
     EmbeddingModel {
 
     override fun embed(document: Document): FloatArray =

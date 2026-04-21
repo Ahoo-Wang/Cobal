@@ -9,8 +9,8 @@ import org.springframework.ai.image.ImageResponse
 
 class LoadBalancedImageModel(
     loadBalancer: LoadBalancer<ImageModelNode>,
-    maxRetries: Int = 3
-) : AbstractLoadBalancedModel<ImageModelNode, ImageModel>(loadBalancer, maxRetries, SpringAiErrorConverter),
+    maxAttempts: Int = 3
+) : AbstractLoadBalancedModel<ImageModelNode, ImageModel>(loadBalancer, maxAttempts, SpringAiErrorConverter),
     ImageModel {
 
     override fun call(prompt: ImagePrompt): ImageResponse =

@@ -257,7 +257,7 @@ class LoadBalancedChatModel(
                 selected.onFailure(nodeError)
             }
         }
-        throw AllNodesUnavailableException(loadBalancer.id)
+        throw AllNodesUnavailableError(loadBalancer.id)
     }
 }
 ```
@@ -365,7 +365,7 @@ User calls LoadBalancedChatModel.chat(request)
         → Returns NodeFailureDecision → mark UNAVAILABLE/CIRCUIT_OPEN
         → Returns null → no state change
       → Re-enter choose() for retry (up to maxRetries)
-    → All nodes unavailable after retries: throw AllNodesUnavailableException
+    → All nodes unavailable after retries: throw AllNodesUnavailableError
 ```
 
 ## Error Handling
@@ -377,7 +377,7 @@ User calls LoadBalancedChatModel.chat(request)
 | 5xx server error | `SERVER_ERROR` | No node state change by default, exception propagates to caller |
 | 400 bad request | `INVALID_REQUEST` | No node state change, caller error |
 | Consecutive failures | (any category) | Mark node CIRCUIT_OPEN after threshold exceeded |
-| All nodes unavailable | — | Throw `AllNodesUnavailableException` |
+| All nodes unavailable | — | Throw `AllNodesUnavailableError` |
 
 ## Package Structure
 

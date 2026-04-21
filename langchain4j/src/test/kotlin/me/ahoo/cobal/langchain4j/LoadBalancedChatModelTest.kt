@@ -8,7 +8,7 @@ import dev.langchain4j.model.chat.response.ChatResponse
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.ChatModelNode
 import me.ahoo.test.asserts.assert
@@ -37,7 +37,7 @@ class LoadBalancedChatModelTest {
     }
 
     @Test
-    fun `should throw AllNodesUnavailableException when all nodes fail`() {
+    fun `should throw AllNodesUnavailableError when all nodes fail`() {
         val failingModel = mockk<ChatModel>()
         every { failingModel.chat(any<ChatRequest>()) } throws RuntimeException("error")
 
@@ -48,7 +48,7 @@ class LoadBalancedChatModelTest {
             .messages(listOf(UserMessage.from("Hi")))
             .build()
 
-        assertThrows<AllNodesUnavailableException> {
+        assertThrows<AllNodesUnavailableError> {
             lbChat.chat(request)
         }
     }

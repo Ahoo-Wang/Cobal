@@ -1,6 +1,6 @@
 package me.ahoo.cobal.springai
 
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.NodeError
@@ -25,7 +25,7 @@ class LoadBalancedImageModel(
                 selected.onFailure(nodeError)
             }
         }
-        throw AllNodesUnavailableException(loadBalancer.id)
+        throw AllNodesUnavailableError(loadBalancer.id)
     }
 
     companion object {

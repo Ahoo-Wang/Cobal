@@ -5,7 +5,7 @@ open class CobalError(
     override val cause: Throwable?
 ) : RuntimeException(message, cause)
 
-class AllNodesUnavailableException(
+class AllNodesUnavailableError(
     val loadBalancerId: LoadBalancerId
 ) : CobalError(
     "All nodes unavailable in load balancer: $loadBalancerId",

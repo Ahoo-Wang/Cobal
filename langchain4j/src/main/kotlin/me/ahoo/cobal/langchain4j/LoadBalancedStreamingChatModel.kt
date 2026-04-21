@@ -3,7 +3,7 @@ package me.ahoo.cobal.langchain4j
 import dev.langchain4j.model.chat.StreamingChatModel
 import dev.langchain4j.model.chat.response.ChatResponse
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.NodeError
@@ -24,7 +24,7 @@ class LoadBalancedStreamingChatModel(
         remainingRetries: Int
     ) {
         if (remainingRetries <= 0) {
-            handler.onError(AllNodesUnavailableException(loadBalancer.id))
+            handler.onError(AllNodesUnavailableError(loadBalancer.id))
             return
         }
 

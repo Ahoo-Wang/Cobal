@@ -4,7 +4,7 @@ import dev.langchain4j.data.embedding.Embedding
 import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.model.output.Response
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.NodeError
@@ -25,11 +25,11 @@ class LoadBalancedEmbeddingModel(
                 val nodeError = toNodeError(e as? Exception ?: RuntimeException(e.message, e))
                 selected.onFailure(nodeError)
                 if (attempt == maxRetries - 1) {
-                    throw AllNodesUnavailableException(loadBalancer.id)
+                    throw AllNodesUnavailableError(loadBalancer.id)
                 }
             }
         }
-        throw AllNodesUnavailableException(loadBalancer.id)
+        throw AllNodesUnavailableError(loadBalancer.id)
     }
 
     companion object {

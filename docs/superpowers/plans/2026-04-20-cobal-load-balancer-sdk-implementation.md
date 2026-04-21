@@ -389,7 +389,7 @@ class RandomLoadBalancerTest {
         val error = NodeError(ErrorCategory.RATE_LIMITED, RuntimeException("429"))
         val selected = lb.choose()
         selected.onFailure(error)
-        org.junit.jupiter.api.assertThrows<AllNodesUnavailableException> {
+        org.junit.jupiter.api.assertThrows<AllNodesUnavailableError> {
             lb.choose()
         }
     }
@@ -399,7 +399,7 @@ class RandomLoadBalancerTest {
 - [ ] **步骤 2：运行测试验证它失败**
 
 运行：`./gradlew :core:test --tests "me.ahoo.cobal.algorithm.RandomLoadBalancerTest" -v`
-预期：FAIL — `RandomLoadBalancer`、`AllNodesUnavailableException` 尚未定义
+预期：FAIL — `RandomLoadBalancer`、`AllNodesUnavailableError` 尚未定义
 
 - [ ] **步骤 3：编写 RandomLoadBalancer.kt**
 
@@ -410,7 +410,7 @@ package me.ahoo.cobal.algorithm
 import me.ahoo.cobal.*
 import java.util.concurrent.ThreadLocalRandom
 
-class AllNodesUnavailableException(val loadBalancerId: LoadBalancerId) : RuntimeException(
+class AllNodesUnavailableError(val loadBalancerId: LoadBalancerId) : RuntimeException(
     "All nodes unavailable in load balancer: $loadBalancerId"
 )
 
@@ -430,7 +430,7 @@ class RandomLoadBalancer<NODE : Node>(
     override fun choose(): NodeState<NODE> {
         val available = availableNodes()
         if (available.isEmpty()) {
-            throw AllNodesUnavailableException(id)
+            throw AllNodesUnavailableError(id)
         }
         return available[ThreadLocalRandom.current().nextInt(available.size)]
     }
@@ -447,7 +447,7 @@ class RandomLoadBalancer<NODE : Node>(
 ```bash
 git add core/src/main/kotlin/me/ahoo/cobal/algorithm/RandomLoadBalancer.kt
 git add core/src/test/kotlin/me/ahoo/cobal/algorithm/RandomLoadBalancerTest.kt
-git commit -m "feat(core): add RandomLoadBalancer with AllNodesUnavailableException"
+git commit -m "feat(core): add RandomLoadBalancer with AllNodesUnavailableError"
 ```
 
 ---
@@ -521,7 +521,7 @@ class RoundRobinLoadBalancer<NODE : Node>(
     override fun choose(): NodeState<NODE> {
         val available = nodeStates.values.filter { it.available }
         if (available.isEmpty()) {
-            throw AllNodesUnavailableException(id)
+            throw AllNodesUnavailableError(id)
         }
         val startIndex = index.getAndIncrement() % available.size
         return available[startIndex]
@@ -606,7 +606,7 @@ class WeightedRoundRobinLoadBalancer<NODE : Node>(
     override fun choose(): NodeState<NODE> {
         val available = nodeStates.values.filter { it.available }
         if (available.isEmpty()) {
-            throw AllNodesUnavailableException(id)
+            throw AllNodesUnavailableError(id)
         }
 
         while (true) {
@@ -1008,12 +1008,12 @@ class LoadBalancedChatModelTest {
     }
 
     @Test
-    fun `should throw AllNodesUnavailableException when all nodes fail`() {
+    fun `should throw AllNodesUnavailableError when all nodes fail`() {
         val failingModel = ChatLanguageModel { throw RuntimeException("error") }
         val node = ChatModelNode("node-1", model = failingModel)
         val lb = RandomLoadBalancer("lb", listOf(node))
         val lbChat = LoadBalancedChatModel(lb, maxRetries = 1)
-        assertThrows<AllNodesUnavailableException> {
+        assertThrows<AllNodesUnavailableError> {
             lbChat.chat(ChatRequest.builder().input("Hi").build())
         }
     }
@@ -1052,7 +1052,7 @@ class LoadBalancedChatModel(
                 selected.onFailure(nodeError)
             }
         }
-        throw AllNodesUnavailableException(loadBalancer.id)
+        throw AllNodesUnavailableError(loadBalancer.id)
     }
 
     companion object {
@@ -1280,5 +1280,5 @@ git commit -m "chore: complete all modules implementation and verification"
 - `LoadBalancer.choose()` 返回 `NodeState<NODE>` — 在任务 4、5、6 中保持一致
 - `NodeState.onFailure(error: NodeError)` — 在任务 3 中保持一致
 - `ErrorCategory.RATE_LIMITED`、`AUTHENTICATION` 等 — 在任务 10、14 中使用
-- `AllNodesUnavailableException(loadBalancerId: LoadBalancerId)` — 在任务 4、10、14 中保持一致
+- `AllNodesUnavailableError(loadBalancerId: LoadBalancerId)` — 在任务 4、10、14 中保持一致
 - `NodeFailureDecision(recoverAt: Instant)` — 在任务 3 和任务 10 中使用

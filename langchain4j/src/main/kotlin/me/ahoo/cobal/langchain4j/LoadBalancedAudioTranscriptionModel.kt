@@ -3,7 +3,7 @@ package me.ahoo.cobal.langchain4j
 import dev.langchain4j.model.audio.AudioTranscriptionModel
 import dev.langchain4j.model.audio.AudioTranscriptionRequest
 import dev.langchain4j.model.audio.AudioTranscriptionResponse
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.NodeError
@@ -24,11 +24,11 @@ class LoadBalancedAudioTranscriptionModel(
                 val nodeError = toNodeError(e as? Exception ?: RuntimeException(e.message, e))
                 selected.onFailure(nodeError)
                 if (attempt == maxRetries - 1) {
-                    throw AllNodesUnavailableException(loadBalancer.id)
+                    throw AllNodesUnavailableError(loadBalancer.id)
                 }
             }
         }
-        throw AllNodesUnavailableException(loadBalancer.id)
+        throw AllNodesUnavailableError(loadBalancer.id)
     }
 
     companion object {

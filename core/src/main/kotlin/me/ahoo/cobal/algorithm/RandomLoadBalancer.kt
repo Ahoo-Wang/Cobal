@@ -1,6 +1,6 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.LoadBalancerId
@@ -25,7 +25,7 @@ class RandomLoadBalancer<NODE : Node>(
     override fun choose(): NodeState<NODE> {
         val available = availableNodes()
         if (available.isEmpty()) {
-            throw AllNodesUnavailableException(id)
+            throw AllNodesUnavailableError(id)
         }
         return available[ThreadLocalRandom.current().nextInt(available.size)]
     }

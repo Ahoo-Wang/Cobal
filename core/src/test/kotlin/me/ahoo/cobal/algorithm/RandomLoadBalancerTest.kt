@@ -1,6 +1,6 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.Node
 import me.ahoo.cobal.NodeError
@@ -35,7 +35,7 @@ class RandomLoadBalancerTest {
         selected2.onFailure(error)
 
         // Now no nodes should be available
-        org.junit.jupiter.api.assertThrows<AllNodesUnavailableException> {
+        org.junit.jupiter.api.assertThrows<AllNodesUnavailableError> {
             lb.choose()
         }
     }
@@ -47,7 +47,7 @@ class RandomLoadBalancerTest {
         val error = NodeError(ErrorCategory.RATE_LIMITED, RuntimeException("429"))
         val selected = lb.choose()
         selected.onFailure(error)
-        org.junit.jupiter.api.assertThrows<AllNodesUnavailableException> {
+        org.junit.jupiter.api.assertThrows<AllNodesUnavailableError> {
             lb.choose()
         }
     }

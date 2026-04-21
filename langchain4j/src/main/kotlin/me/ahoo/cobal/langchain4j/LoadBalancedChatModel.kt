@@ -3,7 +3,7 @@ package me.ahoo.cobal.langchain4j
 import dev.langchain4j.model.chat.ChatModel
 import dev.langchain4j.model.chat.request.ChatRequest
 import dev.langchain4j.model.chat.response.ChatResponse
-import me.ahoo.cobal.AllNodesUnavailableException
+import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.ErrorCategory
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.NodeError
@@ -24,11 +24,11 @@ class LoadBalancedChatModel(
                 val nodeError = toNodeError(e as? Exception ?: RuntimeException(e.message, e))
                 selected.onFailure(nodeError)
                 if (attempt == maxRetries - 1) {
-                    throw AllNodesUnavailableException(loadBalancer.id)
+                    throw AllNodesUnavailableError(loadBalancer.id)
                 }
             }
         }
-        throw AllNodesUnavailableException(loadBalancer.id)
+        throw AllNodesUnavailableError(loadBalancer.id)
     }
 
     companion object {

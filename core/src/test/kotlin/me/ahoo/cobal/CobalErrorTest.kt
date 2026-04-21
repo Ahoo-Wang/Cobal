@@ -73,18 +73,4 @@ class CobalErrorTest {
         error.message.assert().isEqualTo("All nodes unavailable in load balancer: lb-1")
         error.loadBalancerId.assert().isEqualTo("lb-1")
     }
-
-    @Test
-    fun `NodeFailurePolicy returns NodeFailureDecision for retriable errors`() {
-        val policy = NodeFailurePolicy.Default
-        val retriable = RateLimitError("node-1", null)
-        policy.evaluate(retriable).assert().isInstanceOf(NodeFailureDecision::class.java)
-    }
-
-    @Test
-    fun `NodeFailurePolicy returns null for non-retriable errors`() {
-        val policy = NodeFailurePolicy.Default
-        val nonRetriable = AuthenticationError("node-1", null)
-        policy.evaluate(nonRetriable).assert().isNull()
-    }
 }

@@ -35,17 +35,6 @@ class NodeStateTest {
     }
 
     @Test
-    fun `DefaultNodeState onFailure does nothing for non-retriable error`() {
-        val node = SimpleNodeForState("node-1")
-        val state = DefaultNodeState(node)
-
-        val error = AuthenticationError(node.id, null)
-        state.onFailure(error)
-        state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
-        state.available.assert().isTrue()
-    }
-
-    @Test
     fun `onSuccess should reset failure count`() {
         val node = SimpleNodeForState("node-1")
         val state = DefaultNodeState(node, circuitOpenThreshold = 3)

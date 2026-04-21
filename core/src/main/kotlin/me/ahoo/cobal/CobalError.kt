@@ -4,7 +4,7 @@ import java.time.Instant
 
 abstract class CobalError(
     message: String?,
-    override val cause: Throwable?
+    override val cause: Throwable?,
 ) : RuntimeException(message, cause)
 
 interface RetriableError
@@ -12,7 +12,7 @@ interface RetriableError
 open class NodeError(
     val nodeId: NodeId,
     message: String?,
-    cause: Throwable?
+    cause: Throwable?,
 ) : CobalError(message, cause)
 
 class RateLimitError(nodeId: NodeId, cause: Throwable?) :
@@ -34,12 +34,12 @@ class InvalidRequestError(nodeId: NodeId, cause: Throwable?) :
     NodeError(nodeId, "Invalid request [$nodeId]", cause)
 
 class AllNodesUnavailableError(
-    val loadBalancerId: LoadBalancerId
+    val loadBalancerId: LoadBalancerId,
 ) : CobalError("All nodes unavailable in load balancer: $loadBalancerId", null)
 
 data class NodeFailureDecision(
     val recoverAt: Instant,
-    val error: CobalError
+    val error: CobalError,
 )
 
 fun interface NodeFailurePolicy {
@@ -56,9 +56,9 @@ fun interface NodeFailurePolicy {
 }
 
 fun interface ErrorConverter {
-    fun convert(nodeId: NodeId, error: Throwable): CobalError?
+    fun convert(nodeId: NodeId, error: Throwable): CobalError
 
     companion object {
-        val Default = ErrorConverter { _, _ -> null }
+        val Default = ErrorConverter { nodeId, error -> NodeError(nodeId, error.message, error) }
     }
 }

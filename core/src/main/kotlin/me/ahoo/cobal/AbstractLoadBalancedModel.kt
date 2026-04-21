@@ -14,7 +14,6 @@ abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
                 return block(selected.node.model)
             } catch (e: Throwable) {
                 val nodeError = errorConverter.convert(selected.node.id, e)
-                    ?: ServerError(selected.node.id, e)
                 selected.onFailure(nodeError)
             }
         }

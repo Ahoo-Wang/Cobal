@@ -15,7 +15,7 @@ import me.ahoo.cobal.langchain4j.model.StreamingChatModelNode
 
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
-    private val maxRetries: Int = 3
+    private val maxRetries: Int = 3,
 ) : StreamingChatModel {
 
     override fun chat(prompt: String, handler: StreamingChatResponseHandler) {
@@ -25,7 +25,7 @@ class LoadBalancedStreamingChatModel(
     private fun doChatWithRetry(
         prompt: String,
         handler: StreamingChatResponseHandler,
-        remainingRetries: Int
+        remainingRetries: Int,
     ) {
         if (remainingRetries <= 0) {
             handler.onError(AllNodesUnavailableError(loadBalancer.id))
@@ -51,7 +51,7 @@ class LoadBalancedStreamingChatModel(
         try {
             selected.node.model.chat(prompt, retryingHandler)
         } catch (e: Throwable) {
-            val nodeError = toNodeError(selected.node.id, e as? Exception ?: RuntimeException(e.message, e))
+            val nodeError = LangChain4jErrorConverter.convert(selected.node.id, e)
             selected.onFailure(nodeError)
             doChatWithRetry(prompt, handler, remainingRetries - 1)
         }

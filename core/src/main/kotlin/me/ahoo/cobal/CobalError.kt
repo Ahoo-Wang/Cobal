@@ -3,4 +3,11 @@ package me.ahoo.cobal
 open class CobalError(
     message: String?,
     override val cause: Throwable?
-) : Exception(message, cause)
+) : RuntimeException(message, cause)
+
+class AllNodesUnavailableException(
+    val loadBalancerId: LoadBalancerId
+) : CobalError(
+    "All nodes unavailable in load balancer: $loadBalancerId",
+    null
+)

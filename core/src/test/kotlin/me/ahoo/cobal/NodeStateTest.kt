@@ -1,31 +1,16 @@
 package me.ahoo.cobal
 
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import java.time.Clock
-import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.concurrent.thread
-
-class MutableClock(private var instant: Instant) : Clock() {
-    override fun instant(): Instant = instant
-    override fun getZone() = ZoneOffset.UTC
-    override fun withZone(zone: java.time.ZoneId): Clock = this
-    fun advance(duration: Duration) {
-        instant = instant.plus(duration)
-    }
-}
-
-class SimpleNodeForState(override val id: NodeId, override val weight: Int = 1) : Node
 
 class NodeStateTest {
 
     @Test
     fun `DefaultNodeState onFailure marks unavailable for retriable error`() {
-        val node = SimpleNodeForState("node-1")
+        val node = DefaultNode("node-1")
         val state = DefaultNodeState(node)
 
         val error = RateLimitError(node.id, null)
@@ -36,7 +21,7 @@ class NodeStateTest {
 
     @Test
     fun `onSuccess should reset failure count`() {
-        val node = SimpleNodeForState("node-1")
+        val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitOpenThreshold = 3)
 
         state.onFailure(RateLimitError(node.id, null))
@@ -48,7 +33,7 @@ class NodeStateTest {
 
     @Test
     fun `circuit breaker should open after threshold failures`() {
-        val node = SimpleNodeForState("node-1")
+        val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitOpenThreshold = 3)
 
         repeat(3) {
@@ -60,44 +45,42 @@ class NodeStateTest {
     }
 
     @Test
-    fun `circuit breaker should transition to HALF_OPEN after recovery time`() {
-        val clock = MutableClock(Instant.parse("2026-01-01T00:00:00Z"))
+    fun `circuit breaker should transition to HALF_OPEN after recovery time`() = runTest {
         val testPolicy = NodeFailurePolicy { error ->
             when (error) {
-                is RetriableError -> NodeFailureDecision(clock.instant().plusSeconds(30))
+                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
                 else -> null
             }
         }
-        val node = SimpleNodeForState("node-1")
-        val state = DefaultNodeState(node, failurePolicy = testPolicy, circuitOpenThreshold = 2, clock = clock)
+        val node = DefaultNode("node-1")
+        val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
 
         state.onFailure(RateLimitError(node.id, null))
         state.onFailure(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
-        clock.advance(Duration.ofSeconds(60))
+        advanceTimeBy(60_000)
 
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
         state.available.assert().isTrue()
     }
 
     @Test
-    fun `onSuccess in HALF_OPEN should transition to AVAILABLE`() {
-        val clock = MutableClock(Instant.parse("2026-01-01T00:00:00Z"))
+    fun `onSuccess in HALF_OPEN should transition to AVAILABLE`() = runTest {
         val testPolicy = NodeFailurePolicy { error ->
             when (error) {
-                is RetriableError -> NodeFailureDecision(clock.instant().plusSeconds(30))
+                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
                 else -> null
             }
         }
-        val node = SimpleNodeForState("node-1")
-        val state = DefaultNodeState(node, failurePolicy = testPolicy, circuitOpenThreshold = 2, clock = clock)
+        val node = DefaultNode("node-1")
+        val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
 
         state.onFailure(RateLimitError(node.id, null))
         state.onFailure(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
-        clock.advance(Duration.ofSeconds(60))
+        advanceTimeBy(60_000)
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
         state.onSuccess()
@@ -107,12 +90,21 @@ class NodeStateTest {
     }
 
     @Test
-    fun `onFailure in HALF_OPEN should re-open circuit`() {
-        val node = SimpleNodeForState("node-1")
-        val state = DefaultNodeState(node, circuitOpenThreshold = 2)
+    fun `onFailure in HALF_OPEN should re-open circuit`() = runTest {
+        val testPolicy = NodeFailurePolicy { error ->
+            when (error) {
+                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
+                else -> null
+            }
+        }
+        val node = DefaultNode("node-1")
+        val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
 
         state.onFailure(RateLimitError(node.id, null))
         state.onFailure(RateLimitError(node.id, null))
+
+        advanceTimeBy(60_000)
+        state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
         state.onFailure(ServerError(node.id, null))
 
@@ -122,24 +114,24 @@ class NodeStateTest {
 
     @Test
     fun `concurrent onFailure calls should be thread-safe`() {
-        val node = SimpleNodeForState("node-1")
+        val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitOpenThreshold = 100)
         val threadCount = 50
-        val latch = CountDownLatch(threadCount)
-        val errorCount = AtomicInteger(0)
+        val threads = mutableListOf<Thread>()
+        val errorCount = java.util.concurrent.atomic.AtomicInteger(0)
 
         repeat(threadCount) {
-            thread {
+            val t = Thread {
                 try {
                     state.onFailure(RateLimitError(node.id, null))
                 } catch (e: Exception) {
                     errorCount.incrementAndGet()
-                } finally {
-                    latch.countDown()
                 }
             }
+            threads.add(t)
+            t.start()
         }
-        latch.await()
+        threads.forEach { it.join() }
 
         errorCount.get().assert().isEqualTo(0)
         state.status.assert().isNotNull()

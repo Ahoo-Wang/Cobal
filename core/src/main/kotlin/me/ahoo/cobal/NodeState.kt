@@ -1,10 +1,17 @@
 package me.ahoo.cobal
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import java.time.Clock
+import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
 
 enum class NodeStatus {
     AVAILABLE,
@@ -32,81 +39,103 @@ interface NodeState<NODE : Node> {
     fun onSuccess()
 }
 
+internal data class NodeStat(
+    val failureCount: Int = 0,
+    val circuitOpened: Boolean = false,
+    val status: NodeStatus = NodeStatus.AVAILABLE,
+)
+
 class DefaultNodeState<NODE : Node>(
     override val node: NODE,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val failurePolicy: NodeFailurePolicy = NodeFailurePolicy.Default,
     private val circuitOpenThreshold: Int = 5,
-    private val clock: Clock = Clock.systemUTC()
 ) : NodeState<NODE> {
-    private var recoverAt: Instant? = null
-    private var failureCount: Int = 0
-    private var circuitOpened: Boolean = false
+    private val stat = AtomicReference(NodeStat())
     private val events = MutableSharedFlow<NodeEvent>()
+    @Volatile
+    private var recoveryJob: Job? = null
 
     override val watch: Flow<NodeEvent> = events.asSharedFlow()
 
-    private fun computeStatus(): NodeStatus {
-        return when {
-            circuitOpened -> {
-                val currentRecoverAt = recoverAt
-                if (currentRecoverAt != null && !currentRecoverAt.isAfter(clock.instant())) {
-                    NodeStatus.CIRCUIT_HALF_OPEN
-                } else {
-                    NodeStatus.CIRCUIT_OPEN
-                }
-            }
-            failureCount >= circuitOpenThreshold -> {
-                circuitOpened = true
-                NodeStatus.CIRCUIT_OPEN
-            }
-            else -> {
-                val currentRecoverAt = recoverAt
-                when {
-                    currentRecoverAt == Instant.MAX -> NodeStatus.UNAVAILABLE
-                    currentRecoverAt != null && currentRecoverAt.isAfter(clock.instant()) -> NodeStatus.UNAVAILABLE
-                    else -> NodeStatus.AVAILABLE
-                }
-            }
-        }
-    }
-
     override val status: NodeStatus
-        get() = synchronized(this) { computeStatus() }
+        get() = stat.get().status
 
     override fun onFailure(error: CobalError) {
-        synchronized(this) {
-            val currentStatus = computeStatus()
-            if (currentStatus == NodeStatus.CIRCUIT_HALF_OPEN) {
-                circuitOpened = true
-                failurePolicy.evaluate(error)?.let { decision ->
-                    recoverAt = decision.recoverAt
-                }
-                events.tryEmit(NodeEvent.MarkedUnavailable(node.id, recoverAt!!))
-                return
+        val decision = failurePolicy.evaluate(error)
+        var becameCircuitOpen = false
+        var recoveredAt: Instant? = null
+
+        stat.updateAndGet { current ->
+            val newCount = current.failureCount + 1
+            val newOpened = newCount >= circuitOpenThreshold
+            val newStatus = when {
+                current.status == NodeStatus.CIRCUIT_HALF_OPEN -> NodeStatus.CIRCUIT_OPEN
+                newOpened -> NodeStatus.CIRCUIT_OPEN
+                decision != null -> NodeStatus.UNAVAILABLE
+                else -> current.status
             }
-            failureCount++
-            if (failureCount >= circuitOpenThreshold) {
-                circuitOpened = true
-                events.tryEmit(NodeEvent.CircuitOpened(node.id))
-            }
-            failurePolicy.evaluate(error)?.let { decision ->
-                recoverAt = decision.recoverAt
-                events.tryEmit(NodeEvent.MarkedUnavailable(node.id, recoverAt!!))
-            }
+            becameCircuitOpen = newOpened && !current.circuitOpened
+            recoveredAt = decision?.recoverAt
+            NodeStat(
+                failureCount = newCount,
+                circuitOpened = newOpened || current.circuitOpened,
+                status = newStatus,
+            )
+        }
+
+        if (recoveredAt != null) {
+            events.tryEmit(NodeEvent.MarkedUnavailable(node.id, recoveredAt!!))
+            scheduleRecovery(recoveredAt!!)
+        }
+        if (becameCircuitOpen) {
+            events.tryEmit(NodeEvent.CircuitOpened(node.id))
         }
     }
 
     override fun onSuccess() {
-        synchronized(this) {
-            val currentStatus = computeStatus()
-            if (currentStatus == NodeStatus.CIRCUIT_HALF_OPEN || currentStatus == NodeStatus.UNAVAILABLE) {
-                failureCount = 0
-                circuitOpened = false
-                recoverAt = null
-                events.tryEmit(NodeEvent.Recovered(node.id))
-            } else if (failureCount > 0) {
-                failureCount = 0
+        var recovered = false
+        stat.updateAndGet { current ->
+            when (current.status) {
+                NodeStatus.CIRCUIT_HALF_OPEN,
+                NodeStatus.UNAVAILABLE -> {
+                    recovered = true
+                    NodeStat()
+                }
+                else -> current.copy(failureCount = 0)
             }
+        }
+        if (recovered) {
+            recoveryJob?.cancel()
+            events.tryEmit(NodeEvent.Recovered(node.id))
+        }
+    }
+
+    private fun scheduleRecovery(recoverAt: Instant) {
+        recoveryJob?.cancel()
+        val duration = Duration.between(Instant.now(), recoverAt)
+        if (duration.isNegative || duration.isZero) {
+            recover()
+            return
+        }
+        recoveryJob = scope.launch {
+            delay(duration.toMillis())
+            recover()
+        }
+    }
+
+    private fun recover() {
+        var transitionedTo = stat.updateAndGet { current ->
+            when (current.status) {
+                NodeStatus.UNAVAILABLE -> current.copy(status = NodeStatus.AVAILABLE)
+                NodeStatus.CIRCUIT_OPEN -> current.copy(status = NodeStatus.CIRCUIT_HALF_OPEN)
+                else -> current
+            }
+        }.status
+        when (transitionedTo) {
+            NodeStatus.AVAILABLE -> events.tryEmit(NodeEvent.Recovered(node.id))
+            NodeStatus.CIRCUIT_HALF_OPEN -> events.tryEmit(NodeEvent.CircuitHalfOpen(node.id))
+            else -> Unit
         }
     }
 }

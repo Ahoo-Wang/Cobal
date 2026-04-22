@@ -36,7 +36,7 @@ class LoadBalancedStreamingChatModel(
 
             override fun onError(error: Throwable) {
                 val nodeError = LangChain4jErrorConverter.convert(selected.node.id, error)
-                selected.onFailure(nodeError)
+                selected.onError(nodeError)
                 doChatWithRetry(prompt, handler, remainingRetries - 1)
             }
         }
@@ -46,7 +46,7 @@ class LoadBalancedStreamingChatModel(
             selected.node.model.chat(prompt, retryingHandler)
         } catch (e: Exception) {
             val nodeError = LangChain4jErrorConverter.convert(selected.node.id, e)
-            selected.onFailure(nodeError)
+            selected.onError(nodeError)
             doChatWithRetry(prompt, handler, remainingRetries - 1)
         }
     }

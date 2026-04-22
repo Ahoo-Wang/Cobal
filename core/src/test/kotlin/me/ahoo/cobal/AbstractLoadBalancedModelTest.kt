@@ -110,7 +110,7 @@ class AbstractLoadBalancedModelTest {
         val model = StringModel("test")
         val node = StringModelNode("node-1", model = model)
         val state = DefaultNodeState(node, circuitOpenThreshold = 2)
-        state.onFailure(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
 
         val lb = object : LoadBalancer<StringModelNode> {
             override val id = "test-lb"

@@ -27,7 +27,7 @@ class AbstractLoadBalancerTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node)
         val error = RateLimitError(node.id, RuntimeException("429"))
-        state.onFailure(error)
+        state.onError(error)
 
         val lb = FixedLoadBalancer("test-lb", listOf(state), state)
         val ex = assertThrows<AllNodesUnavailableError> { lb.choose() }

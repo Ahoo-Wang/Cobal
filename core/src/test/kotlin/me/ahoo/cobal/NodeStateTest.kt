@@ -9,12 +9,12 @@ import java.time.Instant
 class NodeStateTest {
 
     @Test
-    fun `DefaultNodeState onFailure marks unavailable for retriable error`() {
+    fun `DefaultNodeState onError marks unavailable for retriable error`() {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node)
 
         val error = RateLimitError(node.id, null)
-        state.onFailure(error)
+        state.onError(error)
         state.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
         state.available.assert().isFalse()
     }
@@ -24,8 +24,8 @@ class NodeStateTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitOpenThreshold = 3)
 
-        state.onFailure(RateLimitError(node.id, null))
-        state.onFailure(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
         state.onSuccess()
 
         state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
@@ -37,7 +37,7 @@ class NodeStateTest {
         val state = DefaultNodeState(node, circuitOpenThreshold = 3)
 
         repeat(3) {
-            state.onFailure(RateLimitError(node.id, null))
+            state.onError(RateLimitError(node.id, null))
         }
 
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
@@ -55,8 +55,8 @@ class NodeStateTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
 
-        state.onFailure(RateLimitError(node.id, null))
-        state.onFailure(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
         advanceTimeBy(60_000)
@@ -76,8 +76,8 @@ class NodeStateTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
 
-        state.onFailure(RateLimitError(node.id, null))
-        state.onFailure(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
         advanceTimeBy(60_000)
@@ -90,7 +90,7 @@ class NodeStateTest {
     }
 
     @Test
-    fun `onFailure in HALF_OPEN should re-open circuit`() = runTest {
+    fun `onError in HALF_OPEN should re-open circuit`() = runTest {
         val testPolicy = NodeFailurePolicy { error ->
             when (error) {
                 is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
@@ -100,20 +100,20 @@ class NodeStateTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
 
-        state.onFailure(RateLimitError(node.id, null))
-        state.onFailure(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
+        state.onError(RateLimitError(node.id, null))
 
         advanceTimeBy(60_000)
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
-        state.onFailure(ServerError(node.id, null))
+        state.onError(ServerError(node.id, null))
 
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
         state.available.assert().isFalse()
     }
 
     @Test
-    fun `concurrent onFailure calls should be thread-safe`() {
+    fun `concurrent onError calls should be thread-safe`() {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitOpenThreshold = 100)
         val threadCount = 50
@@ -123,7 +123,7 @@ class NodeStateTest {
         repeat(threadCount) {
             val t = Thread {
                 try {
-                    state.onFailure(RateLimitError(node.id, null))
+                    state.onError(RateLimitError(node.id, null))
                 } catch (e: Exception) {
                     errorCount.incrementAndGet()
                 }

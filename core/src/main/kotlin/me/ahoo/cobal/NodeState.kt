@@ -35,7 +35,7 @@ interface NodeState<NODE : Node> {
     val available: Boolean
         get() = status == NodeStatus.AVAILABLE || status == NodeStatus.CIRCUIT_HALF_OPEN
 
-    fun onFailure(error: CobalError)
+    fun onError(error: CobalError)
     fun onSuccess()
 }
 
@@ -62,7 +62,7 @@ class DefaultNodeState<NODE : Node>(
     override val status: NodeStatus
         get() = stat.get().status
 
-    override fun onFailure(error: CobalError) {
+    override fun onError(error: CobalError) {
         val decision = failurePolicy.evaluate(error)
         var becameCircuitOpen = false
         var recoveredAt: Instant? = null

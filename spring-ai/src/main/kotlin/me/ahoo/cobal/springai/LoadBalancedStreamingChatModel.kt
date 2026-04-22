@@ -33,7 +33,7 @@ class LoadBalancedStreamingChatModel(
                     Flux.error(error)
                 } else {
                     val nodeError = SpringAiErrorConverter.convert(selected.node.id, error)
-                    selected.onFailure(nodeError)
+                    selected.onError(nodeError)
                     doStreamWithRetry(prompt, remainingRetries - 1)
                 }
             }

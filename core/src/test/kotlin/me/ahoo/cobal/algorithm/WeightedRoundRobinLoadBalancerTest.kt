@@ -35,7 +35,7 @@ class WeightedRoundRobinLoadBalancerTest {
         val state2 = DefaultNodeState(node2)
         val lb = WeightedRoundRobinLoadBalancer("wrr-lb", listOf(state1, state2))
 
-        state2.onFailure(me.ahoo.cobal.RateLimitError(node2.id, RuntimeException("429")))
+        state2.onError(me.ahoo.cobal.RateLimitError(node2.id, RuntimeException("429")))
 
         repeat(12) {
             lb.choose().node.id.assert().isEqualTo("node-1")

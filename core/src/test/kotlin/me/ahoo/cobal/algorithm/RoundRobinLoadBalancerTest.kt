@@ -29,7 +29,7 @@ class RoundRobinLoadBalancerTest {
         val error = RateLimitError(node2.id, RuntimeException("429"))
         lb.choose() // node-1
         val selected2 = lb.choose() // node-2
-        selected2.onFailure(error) // mark node-2 unavailable
+        selected2.onError(error) // mark node-2 unavailable
         lb.choose().node.id.assert().isEqualTo("node-1") // back to node-1
     }
 }

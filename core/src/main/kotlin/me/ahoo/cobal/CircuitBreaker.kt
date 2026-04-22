@@ -54,14 +54,22 @@ class DefaultCircuitBreaker(
             when (current.state) {
                 CircuitBreakerState.HALF_OPEN -> {
                     transition = CircuitBreakerTransition.ReHalfOpened
-                    current.copy(state = CircuitBreakerState.OPEN, openedAt = Instant.now(), failureCount = current.failureCount + 1)
+                    current.copy(
+                        state = CircuitBreakerState.OPEN,
+                        openedAt = Instant.now(),
+                        failureCount = current.failureCount + 1
+                    )
                 }
 
                 CircuitBreakerState.CLOSED -> {
                     val newCount = current.failureCount + 1
                     if (newCount >= threshold) {
                         transition = CircuitBreakerTransition.Opened
-                        current.copy(state = CircuitBreakerState.OPEN, openedAt = Instant.now(), failureCount = newCount)
+                        current.copy(
+                            state = CircuitBreakerState.OPEN,
+                            openedAt = Instant.now(),
+                            failureCount = newCount
+                        )
                     } else {
                         current.copy(failureCount = newCount)
                     }

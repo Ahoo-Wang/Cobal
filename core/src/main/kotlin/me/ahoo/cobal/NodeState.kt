@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.time.delay
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
@@ -110,7 +111,7 @@ class DefaultNodeState<NODE : Node>(
             return
         }
         recoveryJob = scope.launch {
-            delay(duration.toMillis())
+            delay(duration)
             recover()
         }
     }

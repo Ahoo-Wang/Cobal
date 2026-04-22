@@ -53,6 +53,7 @@ class DefaultNodeState<NODE : Node>(
 ) : NodeState<NODE> {
     private val stat = AtomicReference(NodeStat())
     private val events = MutableSharedFlow<NodeEvent>()
+
     @Volatile
     private var recoveryJob: Job? = null
 

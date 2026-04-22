@@ -3,7 +3,7 @@ package me.ahoo.cobal.algorithm
 import me.ahoo.cobal.AbstractLoadBalancer
 import me.ahoo.cobal.LoadBalancerId
 import me.ahoo.cobal.Node
-import me.ahoo.cobal.NodeState
+import me.ahoo.cobal.state.NodeState
 import java.util.concurrent.ThreadLocalRandom
 
 class RandomLoadBalancer<NODE : Node>(

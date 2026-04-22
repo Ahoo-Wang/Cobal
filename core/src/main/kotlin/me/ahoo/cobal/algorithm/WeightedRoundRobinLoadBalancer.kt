@@ -4,7 +4,7 @@ import me.ahoo.cobal.AbstractLoadBalancer
 import me.ahoo.cobal.LoadBalancerId
 import me.ahoo.cobal.Node
 import me.ahoo.cobal.NodeId
-import me.ahoo.cobal.NodeState
+import me.ahoo.cobal.state.NodeState
 
 class WeightedRoundRobinLoadBalancer<NODE : Node>(
     id: LoadBalancerId,

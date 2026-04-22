@@ -1,5 +1,8 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.state.CircuitBreakerStatus
+import me.ahoo.cobal.state.CircuitBreakerTransition
+import me.ahoo.cobal.state.DefaultCircuitBreaker
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -11,7 +14,7 @@ class CircuitBreakerTest {
     @Test
     fun `DefaultCircuitBreaker should start CLOSED`() {
         val cb = DefaultCircuitBreaker()
-        cb.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
         cb.recoverAt.assert().isNull()
     }
 
@@ -19,7 +22,7 @@ class CircuitBreakerTest {
     fun `onError should return null when below threshold`() {
         val cb = DefaultCircuitBreaker(threshold = 3)
         cb.onError().assert().isNull()
-        cb.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
     }
 
     @Test
@@ -30,7 +33,7 @@ class CircuitBreakerTest {
         cb.onError().assert().isNull()
         cb.onError().assert().isInstanceOf(CircuitBreakerTransition.Opened::class.java)
 
-        cb.state.assert().isEqualTo(CircuitBreakerState.OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.OPEN)
         cb.recoverAt.assert().isNotNull()
     }
 
@@ -41,10 +44,10 @@ class CircuitBreakerTest {
         cb.onError()
 
         cb.tryRecover()
-        cb.state.assert().isEqualTo(CircuitBreakerState.HALF_OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.HALF_OPEN)
 
         cb.onError().assert().isInstanceOf(CircuitBreakerTransition.ReHalfOpened::class.java)
-        cb.state.assert().isEqualTo(CircuitBreakerState.OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.OPEN)
     }
 
     @Test
@@ -53,7 +56,7 @@ class CircuitBreakerTest {
         cb.onError()
 
         cb.onError().assert().isNull()
-        cb.state.assert().isEqualTo(CircuitBreakerState.OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.OPEN)
     }
 
     @Test
@@ -63,12 +66,12 @@ class CircuitBreakerTest {
         cb.onError()
 
         cb.onSuccess().assert().isNull()
-        cb.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
 
         // Count was reset — takes another 3 errors to open
         cb.onError().assert().isNull()
         cb.onError().assert().isNull()
-        cb.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
     }
 
     @Test
@@ -76,10 +79,10 @@ class CircuitBreakerTest {
         val cb = DefaultCircuitBreaker(threshold = 1)
         cb.onError()
         cb.tryRecover()
-        cb.state.assert().isEqualTo(CircuitBreakerState.HALF_OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.HALF_OPEN)
 
         cb.onSuccess().assert().isInstanceOf(CircuitBreakerTransition.Closed::class.java)
-        cb.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
         cb.recoverAt.assert().isNull()
     }
 
@@ -90,7 +93,7 @@ class CircuitBreakerTest {
 
         val transition = cb.tryRecover()
         transition.assert().isInstanceOf(CircuitBreakerTransition.HalfOpened::class.java)
-        cb.state.assert().isEqualTo(CircuitBreakerState.HALF_OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.HALF_OPEN)
     }
 
     @Test
@@ -106,7 +109,7 @@ class CircuitBreakerTest {
         cb.tryRecover()
 
         cb.tryRecover().assert().isNull()
-        cb.state.assert().isEqualTo(CircuitBreakerState.HALF_OPEN)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.HALF_OPEN)
     }
 
     @Test
@@ -137,7 +140,7 @@ class CircuitBreakerTest {
         cb.tryRecover()
         cb.onSuccess()
 
-        cb.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
         // Failure count is reset
         cb.onError().assert().isNull()
         cb.onError().assert().isInstanceOf(CircuitBreakerTransition.Opened::class.java)

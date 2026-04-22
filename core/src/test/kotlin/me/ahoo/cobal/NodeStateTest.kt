@@ -2,6 +2,10 @@ package me.ahoo.cobal
 
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
+import me.ahoo.cobal.state.CircuitBreakerStatus
+import me.ahoo.cobal.state.DefaultCircuitBreaker
+import me.ahoo.cobal.state.DefaultNodeState
+import me.ahoo.cobal.state.NodeStatus
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -160,7 +164,7 @@ class NodeStateTest {
         val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.circuitBreaker.assert().isSameAs(cb)
-        state.circuitBreaker.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+        state.circuitBreaker.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
     }
 
     @Test

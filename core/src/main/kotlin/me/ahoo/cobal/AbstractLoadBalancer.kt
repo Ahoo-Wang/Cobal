@@ -1,5 +1,7 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.state.NodeState
+
 abstract class AbstractLoadBalancer<NODE : Node>(
     override val id: LoadBalancerId,
     states: List<NodeState<NODE>>

@@ -1,6 +1,7 @@
 package me.ahoo.cobal
 
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
+import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 

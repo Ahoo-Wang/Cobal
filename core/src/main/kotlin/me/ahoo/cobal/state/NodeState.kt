@@ -1,4 +1,4 @@
-package me.ahoo.cobal
+package me.ahoo.cobal.state
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.time.delay
+import me.ahoo.cobal.CobalError
+import me.ahoo.cobal.Node
+import me.ahoo.cobal.NodeFailurePolicy
+import me.ahoo.cobal.NodeId
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
@@ -64,10 +68,10 @@ class DefaultNodeState<NODE : Node>(
     override val watch: Flow<NodeEvent> = events.asSharedFlow()
 
     override val status: NodeStatus
-        get() = when (circuitBreaker.state) {
-            CircuitBreakerState.OPEN -> NodeStatus.CIRCUIT_OPEN
-            CircuitBreakerState.HALF_OPEN -> NodeStatus.CIRCUIT_HALF_OPEN
-            CircuitBreakerState.CLOSED -> stat.get().nodeStatus
+        get() = when (circuitBreaker.status) {
+            CircuitBreakerStatus.OPEN -> NodeStatus.CIRCUIT_OPEN
+            CircuitBreakerStatus.HALF_OPEN -> NodeStatus.CIRCUIT_HALF_OPEN
+            CircuitBreakerStatus.CLOSED -> stat.get().nodeStatus
         }
 
     override fun onError(error: CobalError) {

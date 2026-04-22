@@ -1,5 +1,7 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.state.NodeState
+
 typealias LoadBalancerId = String
 
 interface LoadBalancer<NODE : Node> {

@@ -3,9 +3,9 @@ package me.ahoo.cobal.langchain4j
 import dev.langchain4j.model.chat.StreamingChatModel
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.StreamingChatModelNode
+import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 

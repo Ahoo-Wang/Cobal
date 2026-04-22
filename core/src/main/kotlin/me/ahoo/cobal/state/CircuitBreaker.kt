@@ -1,10 +1,14 @@
-package me.ahoo.cobal
+package me.ahoo.cobal.state
 
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
-enum class CircuitBreakerState {
+interface AvailableCapable {
+    val available: Boolean
+}
+
+enum class CircuitBreakerStatus {
     CLOSED,
     OPEN,
     HALF_OPEN
@@ -18,7 +22,7 @@ sealed interface CircuitBreakerTransition {
 }
 
 interface CircuitBreaker {
-    val state: CircuitBreakerState
+    val status: CircuitBreakerStatus
     val recoverAt: Instant?
 
     fun onError(): CircuitBreakerTransition?
@@ -28,7 +32,7 @@ interface CircuitBreaker {
 
 internal data class CircuitBreakerStat(
     val failureCount: Int = 0,
-    val state: CircuitBreakerState = CircuitBreakerState.CLOSED,
+    val status: CircuitBreakerStatus = CircuitBreakerStatus.CLOSED,
     val openedAt: Instant? = null,
 ) {
     companion object {
@@ -42,8 +46,8 @@ class DefaultCircuitBreaker(
 ) : CircuitBreaker {
     private val stat = AtomicReference(CircuitBreakerStat.Default)
 
-    override val state: CircuitBreakerState
-        get() = stat.get().state
+    override val status: CircuitBreakerStatus
+        get() = stat.get().status
 
     override val recoverAt: Instant?
         get() = stat.get().openedAt?.plus(recoveryDuration)
@@ -51,22 +55,22 @@ class DefaultCircuitBreaker(
     override fun onError(): CircuitBreakerTransition? {
         var transition: CircuitBreakerTransition? = null
         stat.updateAndGet { current ->
-            when (current.state) {
-                CircuitBreakerState.HALF_OPEN -> {
+            when (current.status) {
+                CircuitBreakerStatus.HALF_OPEN -> {
                     transition = CircuitBreakerTransition.ReHalfOpened
                     current.copy(
-                        state = CircuitBreakerState.OPEN,
+                        status = CircuitBreakerStatus.OPEN,
                         openedAt = Instant.now(),
                         failureCount = current.failureCount + 1
                     )
                 }
 
-                CircuitBreakerState.CLOSED -> {
+                CircuitBreakerStatus.CLOSED -> {
                     val newCount = current.failureCount + 1
                     if (newCount >= threshold) {
                         transition = CircuitBreakerTransition.Opened
                         current.copy(
-                            state = CircuitBreakerState.OPEN,
+                            status = CircuitBreakerStatus.OPEN,
                             openedAt = Instant.now(),
                             failureCount = newCount
                         )
@@ -75,7 +79,7 @@ class DefaultCircuitBreaker(
                     }
                 }
 
-                CircuitBreakerState.OPEN -> current
+                CircuitBreakerStatus.OPEN -> current
             }
         }
         return transition
@@ -84,15 +88,15 @@ class DefaultCircuitBreaker(
     override fun onSuccess(): CircuitBreakerTransition? {
         var transition: CircuitBreakerTransition? = null
         stat.updateAndGet { current ->
-            when (current.state) {
-                CircuitBreakerState.HALF_OPEN -> {
+            when (current.status) {
+                CircuitBreakerStatus.HALF_OPEN -> {
                     transition = CircuitBreakerTransition.Closed
                     CircuitBreakerStat.Default
                 }
 
-                CircuitBreakerState.CLOSED -> current.copy(failureCount = 0)
+                CircuitBreakerStatus.CLOSED -> current.copy(failureCount = 0)
 
-                CircuitBreakerState.OPEN -> current
+                CircuitBreakerStatus.OPEN -> current
             }
         }
         return transition
@@ -101,9 +105,9 @@ class DefaultCircuitBreaker(
     override fun tryRecover(): CircuitBreakerTransition? {
         var transition: CircuitBreakerTransition? = null
         stat.updateAndGet { current ->
-            if (current.state == CircuitBreakerState.OPEN) {
+            if (current.status == CircuitBreakerStatus.OPEN) {
                 transition = CircuitBreakerTransition.HalfOpened
-                current.copy(state = CircuitBreakerState.HALF_OPEN)
+                current.copy(status = CircuitBreakerStatus.HALF_OPEN)
             } else {
                 current
             }

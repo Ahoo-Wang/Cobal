@@ -8,9 +8,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.cobal.AllNodesUnavailableError
-import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.EmbeddingModelNode
+import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

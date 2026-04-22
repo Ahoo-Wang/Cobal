@@ -1,9 +1,9 @@
 package me.ahoo.cobal.springai
 
-import me.ahoo.cobal.DefaultCircuitBreaker
-import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.Node
-import me.ahoo.cobal.NodeState
+import me.ahoo.cobal.state.DefaultCircuitBreaker
+import me.ahoo.cobal.state.DefaultNodeState
+import me.ahoo.cobal.state.NodeState
 import java.time.Duration
 
 fun <NODE : Node> NODE.toNodeState(

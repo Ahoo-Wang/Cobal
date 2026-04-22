@@ -2,8 +2,8 @@ package me.ahoo.cobal.algorithm
 
 import me.ahoo.cobal.AllNodesUnavailableError
 import me.ahoo.cobal.DefaultNode
-import me.ahoo.cobal.DefaultNodeState
 import me.ahoo.cobal.RateLimitError
+import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 

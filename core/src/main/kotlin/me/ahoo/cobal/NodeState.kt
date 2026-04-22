@@ -22,6 +22,7 @@ enum class NodeStatus {
 
 sealed interface NodeEvent {
     val nodeId: NodeId
+
     data class MarkedUnavailable(override val nodeId: NodeId, val recoverAt: Instant) : NodeEvent
     data class Recovered(override val nodeId: NodeId) : NodeEvent
     data class CircuitOpened(override val nodeId: NodeId) : NodeEvent
@@ -43,7 +44,11 @@ internal data class NodeStat(
     val failureCount: Int = 0,
     val circuitOpened: Boolean = false,
     val status: NodeStatus = NodeStatus.AVAILABLE,
-)
+) {
+    companion object {
+        val Default = NodeStat()
+    }
+}
 
 class DefaultNodeState<NODE : Node>(
     override val node: NODE,
@@ -51,7 +56,7 @@ class DefaultNodeState<NODE : Node>(
     private val failurePolicy: NodeFailurePolicy = NodeFailurePolicy.Default,
     private val circuitOpenThreshold: Int = 5,
 ) : NodeState<NODE> {
-    private val stat = AtomicReference(NodeStat())
+    private val stat = AtomicReference(NodeStat.Default)
     private val events = MutableSharedFlow<NodeEvent>()
 
     @Volatile
@@ -99,10 +104,12 @@ class DefaultNodeState<NODE : Node>(
         stat.updateAndGet { current ->
             when (current.status) {
                 NodeStatus.CIRCUIT_HALF_OPEN,
-                NodeStatus.UNAVAILABLE -> {
+                NodeStatus.UNAVAILABLE,
+                -> {
                     recovered = true
-                    NodeStat()
+                    NodeStat.Default
                 }
+
                 else -> current.copy(failureCount = 0)
             }
         }
@@ -126,7 +133,7 @@ class DefaultNodeState<NODE : Node>(
     }
 
     private fun recover() {
-        var transitionedTo = stat.updateAndGet { current ->
+        val transitionedTo = stat.updateAndGet { current ->
             when (current.status) {
                 NodeStatus.UNAVAILABLE -> current.copy(status = NodeStatus.AVAILABLE)
                 NodeStatus.CIRCUIT_OPEN -> current.copy(status = NodeStatus.CIRCUIT_HALF_OPEN)

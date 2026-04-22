@@ -1,5 +1,7 @@
 package me.ahoo.cobal
 
+import java.util.concurrent.ConcurrentHashMap
+
 interface LoadBalancerRegistry {
     fun <NODE : Node> getOrCreate(id: LoadBalancerId, factory: () -> LoadBalancer<NODE>): LoadBalancer<NODE>
 
@@ -11,15 +13,13 @@ interface LoadBalancerRegistry {
 }
 
 class DefaultLoadBalancerRegistry : LoadBalancerRegistry {
-    private val registry = java.util.concurrent.ConcurrentHashMap<LoadBalancerId, LoadBalancer<*>>()
+    private val registry = ConcurrentHashMap<LoadBalancerId, LoadBalancer<*>>()
 
     @Suppress("UNCHECKED_CAST")
     override fun <NODE : Node> getOrCreate(id: LoadBalancerId, factory: () -> LoadBalancer<NODE>): LoadBalancer<NODE> {
-        registry[id]?.let { return it as LoadBalancer<NODE> }
-        return synchronized(this) {
-            registry[id]?.let { return@synchronized it as LoadBalancer<NODE> }
-            factory().also { registry[id] = it }
-        }
+        return registry.computeIfAbsent(id) { _ ->
+            factory()
+        } as LoadBalancer<NODE>
     }
 
     @Suppress("UNCHECKED_CAST")

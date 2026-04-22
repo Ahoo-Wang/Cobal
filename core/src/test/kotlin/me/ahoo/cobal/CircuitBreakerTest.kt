@@ -21,7 +21,7 @@ class CircuitBreakerTest {
     @Test
     fun `onError should return null when below threshold`() {
         val cb = DefaultCircuitBreaker(threshold = 3)
-        cb.onError().assert().isNull()
+        cb.fail().assert().isNull()
         cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
     }
 
@@ -29,9 +29,9 @@ class CircuitBreakerTest {
     fun `onError should return Opened at threshold`() {
         val cb = DefaultCircuitBreaker(threshold = 3)
 
-        cb.onError().assert().isNull()
-        cb.onError().assert().isNull()
-        cb.onError().assert().isInstanceOf(CircuitBreakerTransition.Opened::class.java)
+        cb.fail().assert().isNull()
+        cb.fail().assert().isNull()
+        cb.fail().assert().isInstanceOf(CircuitBreakerTransition.Opened::class.java)
 
         cb.status.assert().isEqualTo(CircuitBreakerStatus.OPEN)
         cb.recoverAt.assert().isNotNull()
@@ -40,48 +40,48 @@ class CircuitBreakerTest {
     @Test
     fun `onError should return ReHalfOpened when HALF_OPEN`() {
         val cb = DefaultCircuitBreaker(threshold = 2)
-        cb.onError()
-        cb.onError()
+        cb.fail()
+        cb.fail()
 
         cb.tryRecover()
         cb.status.assert().isEqualTo(CircuitBreakerStatus.HALF_OPEN)
 
-        cb.onError().assert().isInstanceOf(CircuitBreakerTransition.ReHalfOpened::class.java)
+        cb.fail().assert().isInstanceOf(CircuitBreakerTransition.ReHalfOpened::class.java)
         cb.status.assert().isEqualTo(CircuitBreakerStatus.OPEN)
     }
 
     @Test
     fun `onError should return null when OPEN`() {
         val cb = DefaultCircuitBreaker(threshold = 1)
-        cb.onError()
+        cb.fail()
 
-        cb.onError().assert().isNull()
+        cb.fail().assert().isNull()
         cb.status.assert().isEqualTo(CircuitBreakerStatus.OPEN)
     }
 
     @Test
     fun `onSuccess should return null and reset count when CLOSED`() {
         val cb = DefaultCircuitBreaker(threshold = 3)
-        cb.onError()
-        cb.onError()
+        cb.fail()
+        cb.fail()
 
-        cb.onSuccess().assert().isNull()
+        cb.succeed().assert().isNull()
         cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
 
         // Count was reset — takes another 3 errors to open
-        cb.onError().assert().isNull()
-        cb.onError().assert().isNull()
+        cb.fail().assert().isNull()
+        cb.fail().assert().isNull()
         cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
     }
 
     @Test
     fun `onSuccess should return Closed when HALF_OPEN`() {
         val cb = DefaultCircuitBreaker(threshold = 1)
-        cb.onError()
+        cb.fail()
         cb.tryRecover()
         cb.status.assert().isEqualTo(CircuitBreakerStatus.HALF_OPEN)
 
-        cb.onSuccess().assert().isInstanceOf(CircuitBreakerTransition.Closed::class.java)
+        cb.succeed().assert().isInstanceOf(CircuitBreakerTransition.Closed::class.java)
         cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
         cb.recoverAt.assert().isNull()
     }
@@ -89,7 +89,7 @@ class CircuitBreakerTest {
     @Test
     fun `tryRecover should return HalfOpened when OPEN`() {
         val cb = DefaultCircuitBreaker(threshold = 1, recoveryDuration = Duration.ofSeconds(30))
-        cb.onError()
+        cb.fail()
 
         val transition = cb.tryRecover()
         transition.assert().isInstanceOf(CircuitBreakerTransition.HalfOpened::class.java)
@@ -105,7 +105,7 @@ class CircuitBreakerTest {
     @Test
     fun `tryRecover should return null when HALF_OPEN`() {
         val cb = DefaultCircuitBreaker(threshold = 1)
-        cb.onError()
+        cb.fail()
         cb.tryRecover()
 
         cb.tryRecover().assert().isNull()
@@ -116,7 +116,7 @@ class CircuitBreakerTest {
     fun `recoverAt should be openedAt plus recoveryDuration`() {
         val before = Instant.now()
         val cb = DefaultCircuitBreaker(threshold = 1, recoveryDuration = Duration.ofSeconds(30))
-        cb.onError()
+        cb.fail()
         val after = Instant.now()
 
         val recoverAt = cb.recoverAt!!
@@ -135,26 +135,26 @@ class CircuitBreakerTest {
     @Test
     fun `onSuccess resets count after HALF_OPEN to Closed cycle`() {
         val cb = DefaultCircuitBreaker(threshold = 2)
-        cb.onError()
-        cb.onError()
+        cb.fail()
+        cb.fail()
         cb.tryRecover()
-        cb.onSuccess()
+        cb.succeed()
 
         cb.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
         // Failure count is reset
-        cb.onError().assert().isNull()
-        cb.onError().assert().isInstanceOf(CircuitBreakerTransition.Opened::class.java)
+        cb.fail().assert().isNull()
+        cb.fail().assert().isInstanceOf(CircuitBreakerTransition.Opened::class.java)
     }
 
     @Test
     fun `ReHalfOpened should update openedAt`() {
         val cb = DefaultCircuitBreaker(threshold = 1, recoveryDuration = Duration.ofSeconds(10))
-        cb.onError()
+        cb.fail()
         val firstRecoverAt = cb.recoverAt!!
 
         cb.tryRecover()
         Thread.sleep(1)
-        cb.onError()
+        cb.fail()
 
         val secondRecoverAt = cb.recoverAt!!
         assertTrue(secondRecoverAt > firstRecoverAt, "secondRecoverAt should be > firstRecoverAt")

@@ -32,13 +32,13 @@ class LoadBalancedChatModel(
 
         return selected.node.model.stream(prompt)
             .doOnNext { emitted.set(true) }
-            .doOnComplete { selected.onSuccess() }
+            .doOnComplete { selected.succeed() }
             .onErrorResume { error ->
                 if (emitted.get()) {
                     Flux.error(error)
                 } else {
                     val nodeError = SpringAiErrorConverter.convert(selected.node.id, error)
-                    selected.onError(nodeError)
+                    selected.fail(nodeError)
                     doStreamWithRetry(prompt, remainingRetries - 1)
                 }
             }

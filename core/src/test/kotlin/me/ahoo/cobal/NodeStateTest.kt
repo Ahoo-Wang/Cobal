@@ -19,7 +19,7 @@ class NodeStateTest {
         val state = DefaultNodeState(node)
 
         val error = RateLimitError(node.id, null)
-        state.onError(error)
+        state.fail(error)
         state.status.assert().isEqualTo(NodeStatus.UNAVAILABLE)
         state.available.assert().isFalse()
     }
@@ -29,9 +29,9 @@ class NodeStateTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 3))
 
-        state.onError(RateLimitError(node.id, null))
-        state.onError(RateLimitError(node.id, null))
-        state.onSuccess()
+        state.fail(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
+        state.succeed()
 
         state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
     }
@@ -42,7 +42,7 @@ class NodeStateTest {
         val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 3))
 
         repeat(3) {
-            state.onError(RateLimitError(node.id, null))
+            state.fail(RateLimitError(node.id, null))
         }
 
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
@@ -65,8 +65,8 @@ class NodeStateTest {
             circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
         )
 
-        state.onError(RateLimitError(node.id, null))
-        state.onError(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
         advanceTimeBy(60_000)
@@ -91,14 +91,14 @@ class NodeStateTest {
             circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
         )
 
-        state.onError(RateLimitError(node.id, null))
-        state.onError(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
         advanceTimeBy(60_000)
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
-        state.onSuccess()
+        state.succeed()
 
         state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
         state.available.assert().isTrue()
@@ -120,13 +120,13 @@ class NodeStateTest {
             circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
         )
 
-        state.onError(RateLimitError(node.id, null))
-        state.onError(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
+        state.fail(RateLimitError(node.id, null))
 
         advanceTimeBy(60_000)
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
-        state.onError(ServerError(node.id, null))
+        state.fail(ServerError(node.id, null))
 
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
         state.available.assert().isFalse()
@@ -143,7 +143,7 @@ class NodeStateTest {
         repeat(threadCount) {
             val t = Thread {
                 try {
-                    state.onError(RateLimitError(node.id, null))
+                    state.fail(RateLimitError(node.id, null))
                 } catch (e: Exception) {
                     errorCount.incrementAndGet()
                 }
@@ -172,10 +172,10 @@ class NodeStateTest {
         val node = DefaultNode("node-1")
         val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 2))
 
-        state.onError(ServerError(node.id, null))
+        state.fail(ServerError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
 
-        state.onError(ServerError(node.id, null))
+        state.fail(ServerError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
     }
 }

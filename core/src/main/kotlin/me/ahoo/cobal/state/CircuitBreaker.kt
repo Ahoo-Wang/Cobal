@@ -25,8 +25,8 @@ interface CircuitBreaker {
     val status: CircuitBreakerStatus
     val recoverAt: Instant?
 
-    fun onError(): CircuitBreakerTransition?
-    fun onSuccess(): CircuitBreakerTransition?
+    fun fail(): CircuitBreakerTransition?
+    fun succeed(): CircuitBreakerTransition?
     fun tryRecover(): CircuitBreakerTransition?
 }
 
@@ -52,7 +52,7 @@ class DefaultCircuitBreaker(
     override val recoverAt: Instant?
         get() = stat.get().openedAt?.plus(recoveryDuration)
 
-    override fun onError(): CircuitBreakerTransition? {
+    override fun fail(): CircuitBreakerTransition? {
         var transition: CircuitBreakerTransition? = null
         stat.updateAndGet { current ->
             when (current.status) {
@@ -85,7 +85,7 @@ class DefaultCircuitBreaker(
         return transition
     }
 
-    override fun onSuccess(): CircuitBreakerTransition? {
+    override fun succeed(): CircuitBreakerTransition? {
         var transition: CircuitBreakerTransition? = null
         stat.updateAndGet { current ->
             when (current.status) {

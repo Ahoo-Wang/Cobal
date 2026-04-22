@@ -41,8 +41,8 @@ interface NodeState<NODE : Node> {
         get() = status == NodeStatus.AVAILABLE || status == NodeStatus.CIRCUIT_HALF_OPEN
     val circuitBreaker: CircuitBreaker
 
-    fun onError(error: CobalError)
-    fun onSuccess()
+    fun fail(error: CobalError)
+    fun succeed()
 }
 
 internal data class NodeStat(
@@ -74,9 +74,9 @@ class DefaultNodeState<NODE : Node>(
             CircuitBreakerStatus.CLOSED -> stat.get().nodeStatus
         }
 
-    override fun onError(error: CobalError) {
+    override fun fail(error: CobalError) {
         val decision = failurePolicy.evaluate(error)
-        val cbTransition = circuitBreaker.onError()
+        val cbTransition = circuitBreaker.fail()
 
         if (decision != null) {
             stat.updateAndGet { it.copy(nodeStatus = NodeStatus.UNAVAILABLE) }
@@ -95,8 +95,8 @@ class DefaultNodeState<NODE : Node>(
         }
     }
 
-    override fun onSuccess() {
-        val cbTransition = circuitBreaker.onSuccess()
+    override fun succeed() {
+        val cbTransition = circuitBreaker.succeed()
         val wasUnavailable = stat.get().nodeStatus == NodeStatus.UNAVAILABLE
 
         if (cbTransition != null || wasUnavailable) {

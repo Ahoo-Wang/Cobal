@@ -12,11 +12,11 @@ abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
             val selected = loadBalancer.choose()
             try {
                 val result = block(selected.node.model)
-                selected.onSuccess()
+                selected.succeed()
                 return result
             } catch (e: Exception) {
                 val nodeError = errorConverter.convert(selected.node.id, e)
-                selected.onError(nodeError)
+                selected.fail(nodeError)
             }
         }
         throw AllNodesUnavailableError(loadBalancer.id)

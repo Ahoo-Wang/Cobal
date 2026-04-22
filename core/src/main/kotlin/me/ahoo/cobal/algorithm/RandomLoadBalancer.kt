@@ -8,10 +8,11 @@ import java.util.concurrent.ThreadLocalRandom
 
 class RandomLoadBalancer<NODE : Node>(
     id: LoadBalancerId,
-    states: List<NodeState<NODE>>
+    states: List<NodeState<NODE>>,
 ) : AbstractLoadBalancer<NODE>(id, states) {
 
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
-        return available[ThreadLocalRandom.current().nextInt(available.size)]
+        val idx = ThreadLocalRandom.current().nextInt(available.size)
+        return available[idx]
     }
 }

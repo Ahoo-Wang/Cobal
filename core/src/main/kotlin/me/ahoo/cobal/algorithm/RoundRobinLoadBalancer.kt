@@ -14,7 +14,7 @@ class RoundRobinLoadBalancer<NODE : Node>(
     private val index = AtomicInteger(0)
 
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
-        val startIndex = Math.floorMod(index.getAndIncrement(), available.size)
-        return available[startIndex]
+        val idx = Math.floorMod(index.getAndIncrement(), available.size)
+        return available[idx]
     }
 }

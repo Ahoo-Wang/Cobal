@@ -35,15 +35,14 @@ interface NodeState<NODE : Node> {
     val status: NodeStatus
     val available: Boolean
         get() = status == NodeStatus.AVAILABLE || status == NodeStatus.CIRCUIT_HALF_OPEN
+    val circuitBreaker: CircuitBreaker
 
     fun onError(error: CobalError)
     fun onSuccess()
 }
 
 internal data class NodeStat(
-    val failureCount: Int = 0,
-    val circuitOpened: Boolean = false,
-    val status: NodeStatus = NodeStatus.AVAILABLE,
+    val nodeStatus: NodeStatus = NodeStatus.AVAILABLE,
 ) {
     companion object {
         val Default = NodeStat()
@@ -54,7 +53,7 @@ class DefaultNodeState<NODE : Node>(
     override val node: NODE,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val failurePolicy: NodeFailurePolicy = NodeFailurePolicy.Default,
-    private val circuitOpenThreshold: Int = 5,
+    override val circuitBreaker: CircuitBreaker = DefaultCircuitBreaker(),
 ) : NodeState<NODE> {
     private val stat = AtomicReference(NodeStat.Default)
     private val events = MutableSharedFlow<NodeEvent>()
@@ -65,56 +64,40 @@ class DefaultNodeState<NODE : Node>(
     override val watch: Flow<NodeEvent> = events.asSharedFlow()
 
     override val status: NodeStatus
-        get() = stat.get().status
+        get() = when (circuitBreaker.state) {
+            CircuitBreakerState.OPEN -> NodeStatus.CIRCUIT_OPEN
+            CircuitBreakerState.HALF_OPEN -> NodeStatus.CIRCUIT_HALF_OPEN
+            CircuitBreakerState.CLOSED -> stat.get().nodeStatus
+        }
 
     override fun onError(error: CobalError) {
         val decision = failurePolicy.evaluate(error)
-        var becameCircuitOpen = false
-        var recoveredAt: Instant? = null
+        val cbTransition = circuitBreaker.onError()
 
-        stat.updateAndGet { current ->
-            val newCount = current.failureCount + 1
-            val newOpened = newCount >= circuitOpenThreshold
-            val newStatus = when {
-                current.status == NodeStatus.CIRCUIT_HALF_OPEN -> NodeStatus.CIRCUIT_OPEN
-                newOpened -> NodeStatus.CIRCUIT_OPEN
-                decision != null -> NodeStatus.UNAVAILABLE
-                else -> current.status
+        if (decision != null) {
+            stat.updateAndGet { it.copy(nodeStatus = NodeStatus.UNAVAILABLE) }
+            events.tryEmit(NodeEvent.MarkedUnavailable(node.id, decision.recoverAt))
+            scheduleRecovery(decision.recoverAt)
+        }
+
+        when (cbTransition) {
+            is CircuitBreakerTransition.Opened,
+            is CircuitBreakerTransition.ReHalfOpened,
+            -> {
+                events.tryEmit(NodeEvent.CircuitOpened(node.id))
+                circuitBreaker.recoverAt?.let { scheduleRecovery(it) }
             }
-            becameCircuitOpen = newOpened && !current.circuitOpened
-            recoveredAt = decision?.recoverAt
-            NodeStat(
-                failureCount = newCount,
-                circuitOpened = newOpened || current.circuitOpened,
-                status = newStatus,
-            )
-        }
-
-        if (recoveredAt != null) {
-            events.tryEmit(NodeEvent.MarkedUnavailable(node.id, recoveredAt!!))
-            scheduleRecovery(recoveredAt!!)
-        }
-        if (becameCircuitOpen) {
-            events.tryEmit(NodeEvent.CircuitOpened(node.id))
+            else -> Unit
         }
     }
 
     override fun onSuccess() {
-        var recovered = false
-        stat.updateAndGet { current ->
-            when (current.status) {
-                NodeStatus.CIRCUIT_HALF_OPEN,
-                NodeStatus.UNAVAILABLE,
-                -> {
-                    recovered = true
-                    NodeStat.Default
-                }
+        val cbTransition = circuitBreaker.onSuccess()
+        val wasUnavailable = stat.get().nodeStatus == NodeStatus.UNAVAILABLE
 
-                else -> current.copy(failureCount = 0)
-            }
-        }
-        if (recovered) {
+        if (cbTransition != null || wasUnavailable) {
             recoveryJob?.cancel()
+            stat.updateAndGet { NodeStat.Default }
             events.tryEmit(NodeEvent.Recovered(node.id))
         }
     }
@@ -133,17 +116,16 @@ class DefaultNodeState<NODE : Node>(
     }
 
     private fun recover() {
-        val transitionedTo = stat.updateAndGet { current ->
-            when (current.status) {
-                NodeStatus.UNAVAILABLE -> current.copy(status = NodeStatus.AVAILABLE)
-                NodeStatus.CIRCUIT_OPEN -> current.copy(status = NodeStatus.CIRCUIT_HALF_OPEN)
-                else -> current
-            }
-        }.status
-        when (transitionedTo) {
-            NodeStatus.AVAILABLE -> events.tryEmit(NodeEvent.Recovered(node.id))
-            NodeStatus.CIRCUIT_HALF_OPEN -> events.tryEmit(NodeEvent.CircuitHalfOpen(node.id))
-            else -> Unit
+        val cbTransition = circuitBreaker.tryRecover()
+        val wasUnavailable = stat.get().nodeStatus == NodeStatus.UNAVAILABLE
+
+        if (wasUnavailable) {
+            stat.updateAndGet { NodeStat.Default }
+            events.tryEmit(NodeEvent.Recovered(node.id))
+        }
+
+        if (cbTransition is CircuitBreakerTransition.HalfOpened) {
+            events.tryEmit(NodeEvent.CircuitHalfOpen(node.id))
         }
     }
 }

@@ -109,7 +109,7 @@ class AbstractLoadBalancedModelTest {
     fun `executeWithRetry should call onSuccess on success`() {
         val model = StringModel("test")
         val node = StringModelNode("node-1", model = model)
-        val state = DefaultNodeState(node, circuitOpenThreshold = 2)
+        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 2))
         state.onError(RateLimitError(node.id, null))
 
         val lb = object : LoadBalancer<StringModelNode> {

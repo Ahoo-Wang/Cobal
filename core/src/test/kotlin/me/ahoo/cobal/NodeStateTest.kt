@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.time.Instant
 
 class NodeStateTest {
@@ -22,7 +23,7 @@ class NodeStateTest {
     @Test
     fun `onSuccess should reset failure count`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitOpenThreshold = 3)
+        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 3))
 
         state.onError(RateLimitError(node.id, null))
         state.onError(RateLimitError(node.id, null))
@@ -34,7 +35,7 @@ class NodeStateTest {
     @Test
     fun `circuit breaker should open after threshold failures`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitOpenThreshold = 3)
+        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 3))
 
         repeat(3) {
             state.onError(RateLimitError(node.id, null))
@@ -53,7 +54,12 @@ class NodeStateTest {
             }
         }
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
+        val state = DefaultNodeState(
+            node,
+            scope = this,
+            failurePolicy = testPolicy,
+            circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
+        )
 
         state.onError(RateLimitError(node.id, null))
         state.onError(RateLimitError(node.id, null))
@@ -74,7 +80,12 @@ class NodeStateTest {
             }
         }
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
+        val state = DefaultNodeState(
+            node,
+            scope = this,
+            failurePolicy = testPolicy,
+            circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
+        )
 
         state.onError(RateLimitError(node.id, null))
         state.onError(RateLimitError(node.id, null))
@@ -98,7 +109,12 @@ class NodeStateTest {
             }
         }
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, scope = this, failurePolicy = testPolicy, circuitOpenThreshold = 2)
+        val state = DefaultNodeState(
+            node,
+            scope = this,
+            failurePolicy = testPolicy,
+            circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
+        )
 
         state.onError(RateLimitError(node.id, null))
         state.onError(RateLimitError(node.id, null))
@@ -115,7 +131,7 @@ class NodeStateTest {
     @Test
     fun `concurrent onError calls should be thread-safe`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitOpenThreshold = 100)
+        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 100))
         val threadCount = 50
         val threads = mutableListOf<Thread>()
         val errorCount = java.util.concurrent.atomic.AtomicInteger(0)
@@ -135,5 +151,27 @@ class NodeStateTest {
 
         errorCount.get().assert().isEqualTo(0)
         state.status.assert().isNotNull()
+    }
+
+    @Test
+    fun `NodeState should expose circuitBreaker property`() {
+        val node = DefaultNode("node-1")
+        val cb = DefaultCircuitBreaker(threshold = 3)
+        val state = DefaultNodeState(node, circuitBreaker = cb)
+
+        state.circuitBreaker.assert().isSameAs(cb)
+        state.circuitBreaker.state.assert().isEqualTo(CircuitBreakerState.CLOSED)
+    }
+
+    @Test
+    fun `non-policy errors should open circuit without UNAVAILABLE`() {
+        val node = DefaultNode("node-1")
+        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 2))
+
+        state.onError(ServerError(node.id, null))
+        state.status.assert().isEqualTo(NodeStatus.AVAILABLE)
+
+        state.onError(ServerError(node.id, null))
+        state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
     }
 }

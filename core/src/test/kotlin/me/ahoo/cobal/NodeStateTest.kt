@@ -3,6 +3,8 @@ package me.ahoo.cobal
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType
+import me.ahoo.cobal.error.RateLimitError
+import me.ahoo.cobal.error.ServerError
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeStatus
 import me.ahoo.test.asserts.assert

@@ -8,7 +8,7 @@ import dev.langchain4j.model.chat.response.ChatResponse
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.AllNodesUnavailableError
+import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.langchain4j.model.ChatModelNode
 import me.ahoo.cobal.state.DefaultNodeState

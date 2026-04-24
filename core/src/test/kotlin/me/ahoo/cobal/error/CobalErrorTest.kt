@@ -1,4 +1,4 @@
-package me.ahoo.cobal
+package me.ahoo.cobal.error
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test

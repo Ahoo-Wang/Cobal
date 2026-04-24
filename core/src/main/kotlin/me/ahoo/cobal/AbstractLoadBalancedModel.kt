@@ -1,5 +1,8 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.ErrorConverter
+
 abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
     val loadBalancer: LoadBalancer<NODE>,
     protected val errorConverter: ErrorConverter,

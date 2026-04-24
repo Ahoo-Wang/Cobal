@@ -1,8 +1,8 @@
 package me.ahoo.cobal.langchain4j
 
-import me.ahoo.cobal.AuthenticationError
-import me.ahoo.cobal.RateLimitError
-import me.ahoo.cobal.ServerError
+import me.ahoo.cobal.error.AuthenticationError
+import me.ahoo.cobal.error.RateLimitError
+import me.ahoo.cobal.error.ServerError
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Instant

@@ -1,5 +1,6 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.state.NodeState
 
 abstract class AbstractLoadBalancer<NODE : Node>(

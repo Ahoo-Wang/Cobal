@@ -15,6 +15,7 @@ val DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = CircuitBreakerConfig 
         .waitDurationInOpenState(Duration.ofSeconds(60))
         .permittedNumberOfCallsInHalfOpenState(1)
         .automaticTransitionFromOpenToHalfOpenEnabled(true)
+        .ignoreExceptions(InvalidRequestError::class.java)
         .build()
 }
 

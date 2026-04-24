@@ -3,6 +3,9 @@ package me.ahoo.cobal
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType
+import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.ErrorConverter
+import me.ahoo.cobal.error.RateLimitError
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeState
 import me.ahoo.cobal.state.NodeStatus

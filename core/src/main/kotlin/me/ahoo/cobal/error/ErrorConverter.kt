@@ -1,4 +1,6 @@
-package me.ahoo.cobal
+package me.ahoo.cobal.error
+
+import me.ahoo.cobal.NodeId
 
 fun interface ErrorConverter {
     fun convert(nodeId: NodeId, error: Throwable): CobalError

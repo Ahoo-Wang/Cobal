@@ -1,5 +1,7 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.RateLimitError
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeState
 import me.ahoo.test.asserts.assert

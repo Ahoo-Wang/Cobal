@@ -1,4 +1,7 @@
-package me.ahoo.cobal
+package me.ahoo.cobal.error
+
+import me.ahoo.cobal.LoadBalancerId
+import me.ahoo.cobal.NodeId
 
 abstract class CobalError(
     message: String?,

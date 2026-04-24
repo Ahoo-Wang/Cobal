@@ -5,6 +5,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType
 import io.github.resilience4j.kotlin.circuitbreaker.CircuitBreakerConfig
 import me.ahoo.cobal.NodeId
+import me.ahoo.cobal.error.InvalidRequestError
 import java.time.Duration
 
 val DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = CircuitBreakerConfig {

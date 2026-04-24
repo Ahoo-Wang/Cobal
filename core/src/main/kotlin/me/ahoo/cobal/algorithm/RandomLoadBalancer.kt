@@ -1,6 +1,5 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.AbstractLoadBalancer
 import me.ahoo.cobal.LoadBalancerId
 import me.ahoo.cobal.Node
 import me.ahoo.cobal.state.NodeState

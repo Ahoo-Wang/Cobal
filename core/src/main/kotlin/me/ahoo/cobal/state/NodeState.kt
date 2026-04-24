@@ -7,7 +7,7 @@ interface NodeState<NODE : Node> : AvailableCapable, CircuitBreaker {
     val node: NODE
     val circuitBreaker: CircuitBreaker
     override val available: Boolean
-        get() = circuitBreaker.state.available
+        get() = node.weight > 0 && circuitBreaker.state.available
 }
 
 class DefaultNodeState<NODE : Node>(

@@ -9,8 +9,7 @@ import me.ahoo.cobal.langchain4j.model.ImageModelNode
 
 class LoadBalancedImageModel(
     loadBalancer: LoadBalancer<ImageModelNode>,
-    maxAttempts: Int = 3
-) : AbstractLoadBalancedModel<ImageModelNode, ImageModel>(loadBalancer, maxAttempts, LangChain4jErrorConverter),
+) : AbstractLoadBalancedModel<ImageModelNode, ImageModel>(loadBalancer, LangChain4jErrorConverter),
     ImageModel {
 
     override fun generate(prompt: String): Response<Image> =

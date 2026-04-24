@@ -9,13 +9,11 @@ import me.ahoo.cobal.langchain4j.model.AudioTranscriptionModelNode
 
 class LoadBalancedAudioTranscriptionModel(
     loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
-    maxAttempts: Int = 3
 ) : AbstractLoadBalancedModel<
     AudioTranscriptionModelNode,
     AudioTranscriptionModel
     >(
     loadBalancer,
-    maxAttempts,
     LangChain4jErrorConverter
 ),
     AudioTranscriptionModel {

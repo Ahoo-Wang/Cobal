@@ -10,10 +10,8 @@ import me.ahoo.cobal.langchain4j.model.EmbeddingModelNode
 
 class LoadBalancedEmbeddingModel(
     loadBalancer: LoadBalancer<EmbeddingModelNode>,
-    maxAttempts: Int = 3
-) : AbstractLoadBalancedModel<EmbeddingModelNode, EmbeddingModel>(loadBalancer, maxAttempts, LangChain4jErrorConverter),
+) : AbstractLoadBalancedModel<EmbeddingModelNode, EmbeddingModel>(loadBalancer, LangChain4jErrorConverter),
     EmbeddingModel {
-
     override fun embedAll(textSegments: List<TextSegment>): Response<List<Embedding>> =
         executeWithRetry { it.embedAll(textSegments) }
 }

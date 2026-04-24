@@ -2,21 +2,28 @@ package me.ahoo.cobal
 
 abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
     val loadBalancer: LoadBalancer<NODE>,
-    val maxAttempts: Int = 3,
-    private val errorConverter: ErrorConverter
+    protected val errorConverter: ErrorConverter,
 ) {
+    protected open val maxAttempts: Int = loadBalancer.availableStates.size
 
     @Suppress("TooGenericExceptionCaught")
-    protected fun <T> executeWithRetry(block: (MODEL) -> T): T {
+    protected fun <T : Any> executeWithRetry(block: (MODEL) -> T): T {
         repeat(maxAttempts) {
             val selected = loadBalancer.choose()
+            val acquired = selected.tryAcquirePermission()
+            if (!acquired) {
+                return@repeat
+            }
+            val start = selected.currentTimestamp
             try {
                 val result = block(selected.node.model)
-                selected.succeed()
+                val duration = selected.currentTimestamp - start
+                selected.onResult(duration, selected.timestampUnit, result)
                 return result
             } catch (e: Exception) {
                 val nodeError = errorConverter.convert(selected.node.id, e)
-                selected.fail(nodeError)
+                val duration = selected.currentTimestamp - start
+                selected.onError(duration, selected.timestampUnit, nodeError)
             }
         }
         throw AllNodesUnavailableError(loadBalancer.id)

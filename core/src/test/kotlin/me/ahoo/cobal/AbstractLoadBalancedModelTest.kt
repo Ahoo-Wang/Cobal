@@ -1,12 +1,15 @@
 package me.ahoo.cobal
 
-import me.ahoo.cobal.state.DefaultCircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeState
 import me.ahoo.cobal.state.NodeStatus
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 
 class AbstractLoadBalancedModelTest {
 
@@ -113,7 +116,21 @@ class AbstractLoadBalancedModelTest {
     fun `executeWithRetry should call onSuccess on success`() {
         val model = StringModel("test")
         val node = StringModelNode("node-1", model = model)
-        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 2))
+        val state = DefaultNodeState(
+            node,
+            circuitBreaker = CircuitBreaker.of(
+                "test",
+                CircuitBreakerConfig.custom()
+                    .failureRateThreshold(100.0f)
+                    .slidingWindowType(SlidingWindowType.COUNT_BASED)
+                    .slidingWindowSize(2)
+                    .minimumNumberOfCalls(2)
+                    .waitDurationInOpenState(Duration.ofSeconds(60))
+                    .permittedNumberOfCallsInHalfOpenState(1)
+                    .automaticTransitionFromOpenToHalfOpenEnabled(true)
+                    .build()
+            )
+        )
         state.fail(RateLimitError(node.id, null))
 
         val lb = object : LoadBalancer<StringModelNode> {

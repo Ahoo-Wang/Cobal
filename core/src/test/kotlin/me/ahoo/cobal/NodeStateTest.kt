@@ -1,17 +1,29 @@
 package me.ahoo.cobal
 
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runTest
-import me.ahoo.cobal.state.CircuitBreakerStatus
-import me.ahoo.cobal.state.DefaultCircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeStatus
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Duration
-import java.time.Instant
 
 class NodeStateTest {
+
+    private fun testCircuitBreakerConfig(
+        slidingWindowSize: Int = 5,
+        minimumNumberOfCalls: Int = slidingWindowSize,
+        waitDurationInOpenState: Duration = Duration.ofSeconds(60),
+    ): CircuitBreakerConfig = CircuitBreakerConfig.custom()
+        .failureRateThreshold(100.0f)
+        .slidingWindowType(SlidingWindowType.COUNT_BASED)
+        .slidingWindowSize(slidingWindowSize)
+        .minimumNumberOfCalls(minimumNumberOfCalls)
+        .waitDurationInOpenState(waitDurationInOpenState)
+        .permittedNumberOfCallsInHalfOpenState(1)
+        .automaticTransitionFromOpenToHalfOpenEnabled(true)
+        .build()
 
     @Test
     fun `DefaultNodeState onError marks unavailable for retriable error`() {
@@ -25,9 +37,10 @@ class NodeStateTest {
     }
 
     @Test
-    fun `onSuccess should reset failure count`() {
+    fun `onSuccess should reset circuit breaker failure count`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 3))
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 3))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.fail(RateLimitError(node.id, null))
         state.fail(RateLimitError(node.id, null))
@@ -39,7 +52,8 @@ class NodeStateTest {
     @Test
     fun `circuit breaker should open after threshold failures`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 3))
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 3))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
 
         repeat(3) {
             state.fail(RateLimitError(node.id, null))
@@ -50,52 +64,32 @@ class NodeStateTest {
     }
 
     @Test
-    fun `circuit breaker should transition to HALF_OPEN after recovery time`() = runTest {
-        val testPolicy = NodeFailurePolicy { error ->
-            when (error) {
-                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
-                else -> null
-            }
-        }
+    fun `circuit breaker should transition to HALF_OPEN after recovery`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(
-            node,
-            scope = this,
-            failurePolicy = testPolicy,
-            circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
-        )
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 2))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.fail(RateLimitError(node.id, null))
         state.fail(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
-        advanceTimeBy(60_000)
+        cb.transitionToHalfOpenState()
 
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
         state.available.assert().isTrue()
     }
 
     @Test
-    fun `onSuccess in HALF_OPEN should transition to AVAILABLE`() = runTest {
-        val testPolicy = NodeFailurePolicy { error ->
-            when (error) {
-                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
-                else -> null
-            }
-        }
+    fun `onSuccess in HALF_OPEN should transition to AVAILABLE`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(
-            node,
-            scope = this,
-            failurePolicy = testPolicy,
-            circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
-        )
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 2))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.fail(RateLimitError(node.id, null))
         state.fail(RateLimitError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_OPEN)
 
-        advanceTimeBy(60_000)
+        cb.transitionToHalfOpenState()
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
         state.succeed()
@@ -105,25 +99,15 @@ class NodeStateTest {
     }
 
     @Test
-    fun `onError in HALF_OPEN should re-open circuit`() = runTest {
-        val testPolicy = NodeFailurePolicy { error ->
-            when (error) {
-                is RetriableError -> NodeFailureDecision(Instant.now().plusSeconds(30))
-                else -> null
-            }
-        }
+    fun `onError in HALF_OPEN should re-open circuit`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(
-            node,
-            scope = this,
-            failurePolicy = testPolicy,
-            circuitBreaker = DefaultCircuitBreaker(threshold = 2, recoveryDuration = Duration.ofSeconds(30)),
-        )
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 2))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.fail(RateLimitError(node.id, null))
         state.fail(RateLimitError(node.id, null))
 
-        advanceTimeBy(60_000)
+        cb.transitionToHalfOpenState()
         state.status.assert().isEqualTo(NodeStatus.CIRCUIT_HALF_OPEN)
 
         state.fail(ServerError(node.id, null))
@@ -135,7 +119,8 @@ class NodeStateTest {
     @Test
     fun `concurrent onError calls should be thread-safe`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 100))
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 100))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
         val threadCount = 50
         val threads = mutableListOf<Thread>()
         val errorCount = java.util.concurrent.atomic.AtomicInteger(0)
@@ -160,17 +145,18 @@ class NodeStateTest {
     @Test
     fun `NodeState should expose circuitBreaker property`() {
         val node = DefaultNode("node-1")
-        val cb = DefaultCircuitBreaker(threshold = 3)
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 3))
         val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.circuitBreaker.assert().isSameAs(cb)
-        state.circuitBreaker.status.assert().isEqualTo(CircuitBreakerStatus.CLOSED)
+        state.circuitBreaker.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)
     }
 
     @Test
     fun `non-policy errors should open circuit without UNAVAILABLE`() {
         val node = DefaultNode("node-1")
-        val state = DefaultNodeState(node, circuitBreaker = DefaultCircuitBreaker(threshold = 2))
+        val cb = CircuitBreaker.of("test", testCircuitBreakerConfig(slidingWindowSize = 2))
+        val state = DefaultNodeState(node, circuitBreaker = cb)
 
         state.fail(ServerError(node.id, null))
         state.status.assert().isEqualTo(NodeStatus.AVAILABLE)

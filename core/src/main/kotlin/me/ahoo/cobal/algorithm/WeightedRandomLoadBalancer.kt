@@ -6,6 +6,12 @@ import me.ahoo.cobal.state.NodeState
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Selects nodes randomly with probability proportional to their [weight][Node.weight].
+ *
+ * Uses Vose's Alias Method for O(1) selection after O(n) table construction.
+ * The alias table is rebuilt when node availability changes.
+ */
 class WeightedRandomLoadBalancer<NODE : Node>(
     id: LoadBalancerId,
     states: List<NodeState<NODE>>,

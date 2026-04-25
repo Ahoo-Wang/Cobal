@@ -5,6 +5,13 @@ import me.ahoo.cobal.Node
 import me.ahoo.cobal.state.NodeState
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Selects nodes in a smooth weighted round-robin pattern (Nginx-style).
+ *
+ * On each selection, adds each node's weight to a running counter, picks the node with
+ * the highest counter, then subtracts [totalWeight]. This produces an even, deterministic
+ * distribution — e.g., weights 5:1:1 yields A A A A A B C over 7 calls.
+ */
 class WeightedRoundRobinLoadBalancer<NODE : Node>(
     id: LoadBalancerId,
     states: List<NodeState<NODE>>,

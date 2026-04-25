@@ -5,6 +5,7 @@ import me.ahoo.cobal.Node
 import me.ahoo.cobal.state.NodeState
 import java.util.concurrent.ThreadLocalRandom
 
+/** Selects a node uniformly at random using [ThreadLocalRandom]. */
 class RandomLoadBalancer<NODE : Node>(
     id: LoadBalancerId,
     states: List<NodeState<NODE>>,

@@ -5,6 +5,7 @@ import me.ahoo.cobal.Node
 import me.ahoo.cobal.state.NodeState
 import java.util.concurrent.atomic.AtomicInteger
 
+/** Selects nodes in strict round-robin order using a lock-free [AtomicInteger] index. */
 class RoundRobinLoadBalancer<NODE : Node>(
     id: LoadBalancerId,
     states: List<NodeState<NODE>>

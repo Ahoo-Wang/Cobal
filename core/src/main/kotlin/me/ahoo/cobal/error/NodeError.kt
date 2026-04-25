@@ -36,3 +36,8 @@ class AuthenticationError(nodeId: NodeId, cause: Throwable?) :
 /** HTTP 400 — malformed request. Not retriable. Ignored by [DEFAULT_CIRCUIT_BREAKER_CONFIG]. */
 class InvalidRequestError(nodeId: NodeId, cause: Throwable?) :
     NodeError(nodeId, "Invalid request [$nodeId]", cause)
+
+/** Throws immediately if this is an [InvalidRequestError] — bad requests won't succeed on another node. */
+fun NodeError.throwIfInvalidRequest() {
+    if (this is InvalidRequestError) throw this
+}

@@ -1,8 +1,8 @@
 package me.ahoo.cobal
 
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NodeErrorConverter
+import me.ahoo.cobal.error.throwIfInvalidRequest
 import me.ahoo.cobal.state.NodeState
 
 /** Unique identifier for a [LoadBalancer] instance. */
@@ -71,9 +71,7 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
             val nodeError = nodeErrorConverter.convert(candidate.node.id, e)
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
-            if (nodeError is InvalidRequestError) {
-                throw nodeError
-            }
+            nodeError.throwIfInvalidRequest()
         }
     }
     throw AllNodesUnavailableError(id)

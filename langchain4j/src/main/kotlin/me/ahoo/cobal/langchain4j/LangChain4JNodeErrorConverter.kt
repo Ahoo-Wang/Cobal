@@ -2,17 +2,16 @@ package me.ahoo.cobal.langchain4j
 
 import me.ahoo.cobal.NodeId
 import me.ahoo.cobal.error.AuthenticationError
-import me.ahoo.cobal.error.CobalError
-import me.ahoo.cobal.error.ErrorConverter
 import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NetworkError
 import me.ahoo.cobal.error.NodeError
+import me.ahoo.cobal.error.NodeErrorConverter
 import me.ahoo.cobal.error.RateLimitError
 import me.ahoo.cobal.error.ServerError
 import me.ahoo.cobal.error.TimeoutError
 
-object LangChain4jErrorConverter : ErrorConverter {
-    override fun convert(nodeId: NodeId, error: Throwable): CobalError {
+object LangChain4JNodeErrorConverter : NodeErrorConverter {
+    override fun convert(nodeId: NodeId, error: Throwable): NodeError {
         return when (error) {
             is dev.langchain4j.exception.RateLimitException -> RateLimitError(nodeId, error)
             is dev.langchain4j.exception.InvalidRequestException -> InvalidRequestError(nodeId, error)

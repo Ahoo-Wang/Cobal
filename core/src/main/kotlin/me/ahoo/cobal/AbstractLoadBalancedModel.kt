@@ -1,18 +1,18 @@
 package me.ahoo.cobal
 
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.error.ErrorConverter
+import me.ahoo.cobal.error.NodeErrorConverter
 
 /**
  * Base class for load-balanced model wrappers.
  *
  * Implements the retry loop: [choose][LoadBalancer.choose] a node → delegate to its model →
- * on failure: convert error via [ErrorConverter], record with circuit breaker, retry with next node.
+ * on failure: convert error via [NodeErrorConverter], record with circuit breaker, retry with next node.
  * After all retries exhausted, throws [AllNodesUnavailableError].
  */
 abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
     val loadBalancer: LoadBalancer<NODE>,
-    protected val errorConverter: ErrorConverter,
+    protected val nodeErrorConverter: NodeErrorConverter,
 ) {
     /** Maximum number of retry attempts. Defaults to the number of available nodes. */
     protected open val maxAttempts: Int = loadBalancer.availableStates.size
@@ -40,7 +40,7 @@ abstract class AbstractLoadBalancedModel<NODE : ModelNode<MODEL>, MODEL>(
                 selected.onResult(duration, selected.timestampUnit, result)
                 return result
             } catch (e: Exception) {
-                val nodeError = errorConverter.convert(selected.node.id, e)
+                val nodeError = nodeErrorConverter.convert(selected.node.id, e)
                 val duration = selected.currentTimestamp - start
                 selected.onError(duration, selected.timestampUnit, nodeError)
             }

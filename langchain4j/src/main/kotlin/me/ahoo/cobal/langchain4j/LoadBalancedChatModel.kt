@@ -9,7 +9,7 @@ import me.ahoo.cobal.langchain4j.model.ChatModelNode
 
 class LoadBalancedChatModel(
     loadBalancer: LoadBalancer<ChatModelNode>,
-) : AbstractLoadBalancedModel<ChatModelNode, ChatModel>(loadBalancer, LangChain4jErrorConverter),
+) : AbstractLoadBalancedModel<ChatModelNode, ChatModel>(loadBalancer, LangChain4JNodeErrorConverter),
     ChatModel {
 
     override fun chat(request: ChatRequest): ChatResponse =

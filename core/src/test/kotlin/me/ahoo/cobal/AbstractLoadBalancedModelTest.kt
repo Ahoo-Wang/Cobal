@@ -3,8 +3,8 @@ package me.ahoo.cobal
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.error.ErrorConverter
 import me.ahoo.cobal.error.NodeError
+import me.ahoo.cobal.error.NodeErrorConverter
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeState
 import me.ahoo.test.asserts.assert
@@ -21,8 +21,8 @@ class TestModel(val name: String, val shouldFail: Boolean = false) {
 private class TestLoadBalancedModel(
     loadBalancer: LoadBalancer<DefaultModelNode<TestModel>>,
     maxAttempts: Int = 3,
-    errorConverter: ErrorConverter = ErrorConverter.Default,
-) : AbstractLoadBalancedModel<DefaultModelNode<TestModel>, TestModel>(loadBalancer, errorConverter) {
+    nodeErrorConverter: NodeErrorConverter = NodeErrorConverter.Default,
+) : AbstractLoadBalancedModel<DefaultModelNode<TestModel>, TestModel>(loadBalancer, nodeErrorConverter) {
     override val maxAttempts: Int = maxAttempts
     fun <T : Any> execute(block: (TestModel) -> T): T = executeWithRetry { model -> block(model) }
 }
@@ -131,7 +131,7 @@ class AbstractLoadBalancedModelTest {
     fun `executeWithRetry should convert error via ErrorConverter`() {
         var converterCalled = false
         var capturedNodeId: String? = null
-        val customConverter = ErrorConverter { nodeId, _ ->
+        val customConverter = NodeErrorConverter { nodeId, _ ->
             converterCalled = true
             capturedNodeId = nodeId
             NodeError(nodeId, "custom error", null)
@@ -152,7 +152,7 @@ class AbstractLoadBalancedModelTest {
                 if (callCount++ == 0) failState else successState
         }
 
-        val lbModel = TestLoadBalancedModel(lb, maxAttempts = 3, errorConverter = customConverter)
+        val lbModel = TestLoadBalancedModel(lb, maxAttempts = 3, nodeErrorConverter = customConverter)
         val result = lbModel.execute { it.call() }
         result.assert().isEqualTo("success")
         converterCalled.assert().isTrue()

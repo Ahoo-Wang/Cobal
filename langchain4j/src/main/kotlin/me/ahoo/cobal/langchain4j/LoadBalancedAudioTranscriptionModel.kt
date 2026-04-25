@@ -14,7 +14,7 @@ class LoadBalancedAudioTranscriptionModel(
     AudioTranscriptionModel
     >(
     loadBalancer,
-    LangChain4jErrorConverter
+    LangChain4JNodeErrorConverter
 ),
     AudioTranscriptionModel {
 

@@ -18,7 +18,11 @@ interface NodeState<NODE : Node> : AvailableCapable, CircuitBreaker {
         get() = node.weight > 0 && circuitBreaker.state.available
 }
 
-/** Default [NodeState] that delegates [CircuitBreaker] to the provided instance. */
+/**
+ * Default [NodeState] implementation.
+ *
+ * Auto-creates a circuit breaker via [defaultCircuitBreaker] when none is provided.
+ */
 class DefaultNodeState<NODE : Node>(
     override val node: NODE,
     override val circuitBreaker: CircuitBreaker = defaultCircuitBreaker(node.id),

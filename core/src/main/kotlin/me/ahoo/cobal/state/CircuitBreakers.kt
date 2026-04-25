@@ -9,12 +9,12 @@ import me.ahoo.cobal.error.InvalidRequestError
 import java.time.Duration
 
 /**
- * Default circuit breaker configuration for LLM endpoint nodes.
+ * Default circuit breaker configuration tuned for LLM endpoint nodes.
  *
- * Uses a 100% failure rate threshold so that transient successes don't prevent circuit opening.
- * Opens after 5 consecutive failures within a count-based sliding window.
- * Automatically transitions to half-open after 60 seconds.
- * [InvalidRequestError] (400) is ignored — bad requests don't indicate node health issues.
+ * - 100% failure rate threshold: prevents transient successes from masking persistent failures.
+ * - Count-based sliding window of 5: opens after 5 consecutive failures.
+ * - 60s open-state wait: aligns with typical rate-limit reset windows.
+ * - [InvalidRequestError] ignored: 400 errors reflect caller issues, not endpoint health.
  */
 val DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = CircuitBreakerConfig {
     failureRateThreshold(100.0f)

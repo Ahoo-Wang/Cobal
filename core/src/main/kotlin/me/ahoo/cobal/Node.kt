@@ -26,7 +26,7 @@ data class DefaultNode(
 /**
  * A [Node] that wraps a framework-specific model instance.
  *
- * Used by [AbstractLoadBalancedModel] to delegate requests to the underlying model.
+ * Used by [LoadBalancer.execute] to delegate requests to the underlying model.
  */
 interface ModelNode<MODEL> : Node {
     val model: MODEL

@@ -38,6 +38,7 @@ interface LoadBalancer<NODE : Node> {
  * On each attempt: acquires circuit breaker permission via [NodeState.tryAcquirePermission],
  * calls [block], records success/failure with timing.
  * Skips nodes whose circuit breaker denies permission.
+ * [InvalidRequestError] is thrown immediately without retry — bad requests won't succeed on another node.
  *
  * @param NODE the model node type
  * @param MODEL the framework-specific model type
@@ -46,6 +47,7 @@ interface LoadBalancer<NODE : Node> {
  * @param maxAttempts maximum number of retry attempts, defaults to the number of available nodes
  * @param block the operation to execute against the selected node's model
  * @throws AllNodesUnavailableError if all attempts are exhausted
+ * @throws InvalidRequestError immediately on bad request, without retry
  */
 @Suppress("TooGenericExceptionCaught")
 inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(

@@ -11,7 +11,7 @@ class NodeErrorConverterTest {
         val result = NodeErrorConverter.Default.convert("node-1", error)
 
         result.assert().isInstanceOf(NodeError::class.java)
-        (result as NodeError).nodeId.assert().isEqualTo("node-1")
+        result.nodeId.assert().isEqualTo("node-1")
     }
 
     @Test

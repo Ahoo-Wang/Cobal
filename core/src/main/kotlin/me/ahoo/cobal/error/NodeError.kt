@@ -37,7 +37,10 @@ class AuthenticationError(nodeId: NodeId, cause: Throwable?) :
 class InvalidRequestError(nodeId: NodeId, cause: Throwable?) :
     NodeError(nodeId, "Invalid request [$nodeId]", cause)
 
+val NodeError.isInvalidRequest: Boolean
+    get() = this is InvalidRequestError
+
 /** Throws immediately if this is an [InvalidRequestError] — bad requests won't succeed on another node. */
 fun NodeError.throwIfInvalidRequest() {
-    if (this is InvalidRequestError) throw this
+    if (isInvalidRequest) throw this
 }

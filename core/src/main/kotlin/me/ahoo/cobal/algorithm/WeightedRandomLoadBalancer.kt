@@ -1,0 +1,84 @@
+package me.ahoo.cobal.algorithm
+
+import me.ahoo.cobal.LoadBalancerId
+import me.ahoo.cobal.Node
+import me.ahoo.cobal.state.NodeState
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicReference
+
+class WeightedRandomLoadBalancer<NODE : Node>(
+    id: LoadBalancerId,
+    states: List<NodeState<NODE>>,
+) : AbstractLoadBalancer<NODE>(id, states) {
+
+    private val aliasTableRef = AtomicReference<AliasTable?>(null)
+
+    private data class AliasTable(
+        val prob: DoubleArray,
+        val alias: IntArray,
+    )
+
+    init {
+        rebuildAliasTable()
+    }
+
+    override fun onStateChanged() {
+        rebuildAliasTable()
+    }
+
+    private fun rebuildAliasTable() {
+        aliasTableRef.set(buildAliasTable(availableStates))
+    }
+
+    override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
+        val table = aliasTableRef.get()
+        if (table == null || available.size == 1) {
+            return available[0]
+        }
+        val random = ThreadLocalRandom.current()
+        val slot = random.nextInt(available.size)
+        return if (random.nextDouble() < table.prob[slot]) {
+            available[slot]
+        } else {
+            available[table.alias[slot]]
+        }
+    }
+
+    companion object {
+        private fun buildAliasTable(states: List<NodeState<*>>): AliasTable? {
+            val n = states.size
+            if (n <= 1) return null
+            val prob = DoubleArray(n)
+            val alias = IntArray(n)
+            val totalWeight = states.sumOf { it.node.weight.toDouble() }
+            if (totalWeight <= 0.0) return null
+
+            val normalizedWeights = DoubleArray(n) { i -> states[i].node.weight.toDouble() * n / totalWeight }
+
+            val small = ArrayDeque<Int>()
+            val large = ArrayDeque<Int>()
+
+            for (i in 0 until n) {
+                if (normalizedWeights[i] < 1.0) small.addLast(i) else large.addLast(i)
+            }
+
+            while (small.isNotEmpty() && large.isNotEmpty()) {
+                val s = small.removeFirst()
+                val l = large.removeFirst()
+                prob[s] = normalizedWeights[s]
+                alias[s] = l
+                normalizedWeights[l] += normalizedWeights[s] - 1.0
+                if (normalizedWeights[l] < 1.0) small.addLast(l) else large.addLast(l)
+            }
+
+            while (large.isNotEmpty()) {
+                prob[large.removeFirst()] = 1.0
+            }
+            while (small.isNotEmpty()) {
+                prob[small.removeFirst()] = 1.0
+            }
+
+            return AliasTable(prob, alias)
+        }
+    }
+}

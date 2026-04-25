@@ -11,23 +11,21 @@ class WeightedRandomLoadBalancer<NODE : Node>(
     states: List<NodeState<NODE>>,
 ) : AbstractLoadBalancer<NODE>(id, states) {
 
-    private val aliasTableRef = AtomicReference<AliasTable?>(null)
+    private val aliasTableRef = AtomicReference<AliasTable?>(buildAliasTable())
 
-    private data class AliasTable(
+    private class AliasTable(
         val prob: DoubleArray,
         val alias: IntArray,
     )
-
-    init {
-        rebuildAliasTable()
-    }
 
     override fun onStateChanged() {
         rebuildAliasTable()
     }
 
+    private fun buildAliasTable() = buildAliasTable(availableStates)
+
     private fun rebuildAliasTable() {
-        aliasTableRef.set(buildAliasTable(availableStates))
+        aliasTableRef.set(buildAliasTable())
     }
 
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {

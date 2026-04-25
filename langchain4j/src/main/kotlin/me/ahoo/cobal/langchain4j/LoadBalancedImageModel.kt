@@ -4,8 +4,10 @@ import dev.langchain4j.data.image.Image
 import dev.langchain4j.model.image.ImageModel
 import dev.langchain4j.model.output.Response
 import me.ahoo.cobal.AbstractLoadBalancedModel
+import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
-import me.ahoo.cobal.langchain4j.model.ImageModelNode
+
+typealias ImageModelNode = DefaultModelNode<ImageModel>
 
 class LoadBalancedImageModel(
     loadBalancer: LoadBalancer<ImageModelNode>,

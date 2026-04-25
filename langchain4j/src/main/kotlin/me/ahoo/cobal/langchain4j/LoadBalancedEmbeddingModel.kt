@@ -5,8 +5,10 @@ import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.model.output.Response
 import me.ahoo.cobal.AbstractLoadBalancedModel
+import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
-import me.ahoo.cobal.langchain4j.model.EmbeddingModelNode
+
+typealias EmbeddingModelNode = DefaultModelNode<EmbeddingModel>
 
 class LoadBalancedEmbeddingModel(
     loadBalancer: LoadBalancer<EmbeddingModelNode>,

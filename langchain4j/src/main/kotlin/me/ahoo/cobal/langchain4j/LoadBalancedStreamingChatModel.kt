@@ -3,9 +3,11 @@ package me.ahoo.cobal.langchain4j
 import dev.langchain4j.model.chat.StreamingChatModel
 import dev.langchain4j.model.chat.response.ChatResponse
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
+import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.langchain4j.model.StreamingChatModelNode
+
+typealias StreamingChatModelNode = DefaultModelNode<StreamingChatModel>
 
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,

@@ -32,10 +32,10 @@ class WeightedRandomLoadBalancer<NODE : Node>(
 
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
         val table = aliasTableRef.get()
-        if (table == null || available.size == 1 || table.prob.size != available.size) {
-            return available[ThreadLocalRandom.current().nextInt(available.size)]
-        }
         val random = ThreadLocalRandom.current()
+        if (table == null || available.size == 1 || table.prob.size != available.size) {
+            return available[random.nextInt(available.size)]
+        }
         val slot = random.nextInt(available.size)
         return if (random.nextDouble() < table.prob[slot]) {
             available[slot]
@@ -48,11 +48,11 @@ class WeightedRandomLoadBalancer<NODE : Node>(
         private fun buildAliasTable(states: List<NodeState<*>>): AliasTable? {
             val n = states.size
             if (n <= 1) return null
-            val prob = DoubleArray(n)
-            val alias = IntArray(n)
             val totalWeight = states.sumOf { it.node.weight.toDouble() }
             if (totalWeight <= 0.0) return null
 
+            val prob = DoubleArray(n)
+            val alias = IntArray(n)
             val normalizedWeights = DoubleArray(n) { i -> states[i].node.weight.toDouble() * n / totalWeight }
 
             val small = ArrayDeque<Int>()

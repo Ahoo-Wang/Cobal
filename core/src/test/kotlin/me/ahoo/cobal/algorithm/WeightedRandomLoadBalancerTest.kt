@@ -12,6 +12,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class WeightedRandomLoadBalancerTest {
+    companion object {
+        private fun strictCircuitBreakerConfig() = CircuitBreakerConfig.custom()
+            .failureRateThreshold(100.0f)
+            .slidingWindowSize(1)
+            .minimumNumberOfCalls(1)
+            .waitDurationInOpenState(Duration.ofSeconds(60))
+            .build()
+    }
+
     @Test
     fun `choose should return single available node`() {
         val node = DefaultNode("node-1", weight = 5)
@@ -48,16 +57,10 @@ class WeightedRandomLoadBalancerTest {
 
     @Test
     fun `choose should rebuild alias table on state change`() {
-        val testConfig = CircuitBreakerConfig.custom()
-            .failureRateThreshold(100.0f)
-            .slidingWindowSize(1)
-            .minimumNumberOfCalls(1)
-            .waitDurationInOpenState(Duration.ofSeconds(60))
-            .build()
         val node1 = DefaultNode("node-1", weight = 3)
         val node2 = DefaultNode("node-2", weight = 1)
-        val state1 = DefaultNodeState(node1, CircuitBreaker.of("node-1", testConfig))
-        val state2 = DefaultNodeState(node2, CircuitBreaker.of("node-2", testConfig))
+        val state1 = DefaultNodeState(node1, CircuitBreaker.of("node-1", strictCircuitBreakerConfig()))
+        val state2 = DefaultNodeState(node2, CircuitBreaker.of("node-2", strictCircuitBreakerConfig()))
         val lb = WeightedRandomLoadBalancer("wrandom-lb", listOf(state1, state2))
 
         // Open node2's circuit breaker by recording a failure
@@ -71,14 +74,8 @@ class WeightedRandomLoadBalancerTest {
 
     @Test
     fun `choose should throw AllNodesUnavailableError when no nodes available`() {
-        val testConfig = CircuitBreakerConfig.custom()
-            .failureRateThreshold(100.0f)
-            .slidingWindowSize(1)
-            .minimumNumberOfCalls(1)
-            .waitDurationInOpenState(Duration.ofSeconds(60))
-            .build()
         val node1 = DefaultNode("node-1", weight = 3)
-        val state1 = DefaultNodeState(node1, CircuitBreaker.of("node-1", testConfig))
+        val state1 = DefaultNodeState(node1, CircuitBreaker.of("node-1", strictCircuitBreakerConfig()))
         val lb = WeightedRandomLoadBalancer("wrandom-lb", listOf(state1))
 
         state1.circuitBreaker.onError(0, state1.circuitBreaker.timestampUnit, RuntimeException("error"))

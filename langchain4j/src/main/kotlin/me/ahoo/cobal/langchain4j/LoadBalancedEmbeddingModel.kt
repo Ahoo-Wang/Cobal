@@ -4,16 +4,15 @@ import dev.langchain4j.data.embedding.Embedding
 import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.model.output.Response
-import me.ahoo.cobal.AbstractLoadBalancedModel
 import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
+import me.ahoo.cobal.execute
 
 typealias EmbeddingModelNode = DefaultModelNode<EmbeddingModel>
 
 class LoadBalancedEmbeddingModel(
-    loadBalancer: LoadBalancer<EmbeddingModelNode>,
-) : AbstractLoadBalancedModel<EmbeddingModelNode, EmbeddingModel>(loadBalancer, LangChain4JNodeErrorConverter),
-    EmbeddingModel {
+    private val loadBalancer: LoadBalancer<EmbeddingModelNode>,
+) : EmbeddingModel {
     override fun embedAll(textSegments: List<TextSegment>): Response<List<Embedding>> =
-        executeWithRetry { it.embedAll(textSegments) }
+        loadBalancer.execute(LangChain4JNodeErrorConverter) { it.embedAll(textSegments) }
 }

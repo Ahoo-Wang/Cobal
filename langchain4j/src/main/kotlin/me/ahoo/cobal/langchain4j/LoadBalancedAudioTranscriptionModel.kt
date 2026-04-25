@@ -3,23 +3,16 @@ package me.ahoo.cobal.langchain4j
 import dev.langchain4j.model.audio.AudioTranscriptionModel
 import dev.langchain4j.model.audio.AudioTranscriptionRequest
 import dev.langchain4j.model.audio.AudioTranscriptionResponse
-import me.ahoo.cobal.AbstractLoadBalancedModel
 import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
+import me.ahoo.cobal.execute
 
 typealias AudioTranscriptionModelNode = DefaultModelNode<AudioTranscriptionModel>
 
 class LoadBalancedAudioTranscriptionModel(
-    loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
-) : AbstractLoadBalancedModel<
-    AudioTranscriptionModelNode,
-    AudioTranscriptionModel
-    >(
-    loadBalancer,
-    LangChain4JNodeErrorConverter
-),
-    AudioTranscriptionModel {
+    private val loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
+) : AudioTranscriptionModel {
 
     override fun transcribe(request: AudioTranscriptionRequest): AudioTranscriptionResponse =
-        executeWithRetry { it.transcribe(request) }
+        loadBalancer.execute(LangChain4JNodeErrorConverter) { it.transcribe(request) }
 }

@@ -1,7 +1,6 @@
 package me.ahoo.cobal.error
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class CobalErrorTest {

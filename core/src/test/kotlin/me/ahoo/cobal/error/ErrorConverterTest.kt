@@ -9,6 +9,7 @@ class ErrorConverterTest {
     fun `Default converter should return NodeError`() {
         val error = RuntimeException("test")
         val result = ErrorConverter.Default.convert("node-1", error)
+
         result.assert().isInstanceOf(NodeError::class.java)
         (result as NodeError).nodeId.assert().isEqualTo("node-1")
     }

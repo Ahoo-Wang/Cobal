@@ -1,6 +1,7 @@
 package me.ahoo.cobal
 
 import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NodeErrorConverter
 import me.ahoo.cobal.state.NodeState
 
@@ -31,6 +32,21 @@ interface LoadBalancer<NODE : Node> {
     fun choose(): NodeState<NODE>
 }
 
+/**
+ * Executes [block] against a selected node's model with automatic retry on failure.
+ *
+ * On each attempt: acquires circuit breaker permission via [NodeState.tryAcquirePermission],
+ * calls [block], records success/failure with timing.
+ * Skips nodes whose circuit breaker denies permission.
+ *
+ * @param NODE the model node type
+ * @param MODEL the framework-specific model type
+ * @param R the result type
+ * @param nodeErrorConverter translates framework exceptions to [me.ahoo.cobal.error.NodeError]
+ * @param maxAttempts maximum number of retry attempts, defaults to the number of available nodes
+ * @param block the operation to execute against the selected node's model
+ * @throws AllNodesUnavailableError if all attempts are exhausted
+ */
 @Suppress("TooGenericExceptionCaught")
 inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
     nodeErrorConverter: NodeErrorConverter,
@@ -53,6 +69,9 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
             val nodeError = nodeErrorConverter.convert(candidate.node.id, e)
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
+            if (nodeError is InvalidRequestError) {
+                throw nodeError
+            }
         }
     }
     throw AllNodesUnavailableError(id)

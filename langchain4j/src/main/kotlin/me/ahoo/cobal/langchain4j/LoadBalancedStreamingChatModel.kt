@@ -6,6 +6,7 @@ import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
 import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.state.NodeState
 
 typealias StreamingChatModelNode = DefaultModelNode<StreamingChatModel>
@@ -32,6 +33,10 @@ class LoadBalancedStreamingChatModel(
             val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, error)
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
+            if (nodeError is InvalidRequestError) {
+                delegate.onError(nodeError)
+                return
+            }
             doChatWithRetry(prompt, delegate, remainingRetries - 1)
             delegate.onError(error)
         }
@@ -68,6 +73,10 @@ class LoadBalancedStreamingChatModel(
             val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, e)
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
+            if (nodeError is InvalidRequestError) {
+                handler.onError(nodeError)
+                return
+            }
             doChatWithRetry(prompt, handler, remainingRetries - 1)
         }
     }

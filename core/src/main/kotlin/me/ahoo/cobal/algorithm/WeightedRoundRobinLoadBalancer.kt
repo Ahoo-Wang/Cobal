@@ -45,6 +45,7 @@ class WeightedRoundRobinLoadBalancer<NODE : Node>(
 
         var bestIndex = 0
         var bestWeight = Int.MIN_VALUE
+        // Add each node's weight to its running counter
         for (i in available.indices) {
             weights[i] += available[i].node.weight
             if (weights[i] > bestWeight) {
@@ -52,6 +53,7 @@ class WeightedRoundRobinLoadBalancer<NODE : Node>(
                 bestIndex = i
             }
         }
+        // Subtract totalWeight from the selected node to maintain balance
         weights[bestIndex] -= totalWeight
         return available[bestIndex]
     }

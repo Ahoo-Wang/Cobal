@@ -49,6 +49,17 @@ class RandomLoadBalancerTest {
     }
 
     @Test
+    fun `choose should return single available node`() {
+        val node = DefaultNode("node-1")
+        val state = DefaultNodeState(node)
+        val lb = RandomLoadBalancer("random-lb", listOf(state))
+
+        repeat(10) {
+            lb.choose().node.id.assert().isEqualTo("node-1")
+        }
+    }
+
+    @Test
     fun `all nodes unavailable should throw`() {
         val node1 = DefaultNode("node-1")
         val node2 = DefaultNode("node-2")

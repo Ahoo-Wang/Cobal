@@ -57,8 +57,10 @@ class WeightedRandomLoadBalancer<NODE : Node>(
 
             val prob = DoubleArray(n)
             val alias = IntArray(n)
+            // Normalize weights so each averages 1.0
             val normalizedWeights = DoubleArray(n) { i -> states[i].node.weight.toDouble() * n / totalWeight }
 
+            // Partition into below-average (small) and above-average (large)
             val small = ArrayDeque<Int>()
             val large = ArrayDeque<Int>()
 
@@ -66,6 +68,7 @@ class WeightedRandomLoadBalancer<NODE : Node>(
                 if (normalizedWeights[i] < 1.0) small.addLast(i) else large.addLast(i)
             }
 
+            // Pair small with large: small gets its probability, large absorbs the remainder
             while (small.isNotEmpty() && large.isNotEmpty()) {
                 val s = small.removeFirst()
                 val l = large.removeFirst()
@@ -75,6 +78,7 @@ class WeightedRandomLoadBalancer<NODE : Node>(
                 if (normalizedWeights[l] < 1.0) small.addLast(l) else large.addLast(l)
             }
 
+            // Remaining entries (floating-point rounding) get probability 1.0
             while (large.isNotEmpty()) {
                 prob[large.removeFirst()] = 1.0
             }

@@ -22,6 +22,7 @@ abstract class AbstractLoadBalancer<NODE : Node>(
     override val availableStates: List<NodeState<NODE>>
         get() = availableStatesRef.get()
 
+    // Subscribe to state transitions to keep cached availableStates in sync
     init {
         states.forEach { nodeState ->
             nodeState.eventPublisher.onStateTransition {

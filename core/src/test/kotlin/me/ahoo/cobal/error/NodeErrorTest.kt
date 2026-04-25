@@ -1,6 +1,7 @@
 package me.ahoo.cobal.error
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class NodeErrorTest {
@@ -52,5 +53,48 @@ class NodeErrorTest {
     fun `InvalidRequestError is not retriable`() {
         val error = InvalidRequestError("node-6", null)
         error.assert().isNotInstanceOf(RetriableError::class.java)
+    }
+
+    @Test
+    fun `isInvalidRequest should return true for InvalidRequestError`() {
+        val error = InvalidRequestError("node-1", null)
+        error.isInvalidRequest.assert().isTrue()
+    }
+
+    @Test
+    fun `isInvalidRequest should return false for other NodeError types`() {
+        RateLimitError("node-1", null).isInvalidRequest.assert().isFalse()
+        ServerError("node-1", null).isInvalidRequest.assert().isFalse()
+        TimeoutError("node-1", null).isInvalidRequest.assert().isFalse()
+        NetworkError("node-1", null).isInvalidRequest.assert().isFalse()
+        AuthenticationError("node-1", null).isInvalidRequest.assert().isFalse()
+    }
+
+    @Test
+    fun `throwIfInvalidRequest should throw for InvalidRequestError`() {
+        val error = InvalidRequestError("node-1", null)
+        assertThrownBy<InvalidRequestError> {
+            error.throwIfInvalidRequest()
+        }
+    }
+
+    @Test
+    fun `throwIfInvalidRequest should not throw for retriable errors`() {
+        RateLimitError("node-1", null).throwIfInvalidRequest()
+        ServerError("node-1", null).throwIfInvalidRequest()
+        TimeoutError("node-1", null).throwIfInvalidRequest()
+        NetworkError("node-1", null).throwIfInvalidRequest()
+    }
+
+    @Test
+    fun `AuthenticationError should have correct message format`() {
+        val error = AuthenticationError("node-1", null)
+        error.message.assert().isEqualTo("Auth failed [node-1]")
+    }
+
+    @Test
+    fun `InvalidRequestError should have correct message format`() {
+        val error = InvalidRequestError("node-2", null)
+        error.message.assert().isEqualTo("Invalid request [node-2]")
     }
 }

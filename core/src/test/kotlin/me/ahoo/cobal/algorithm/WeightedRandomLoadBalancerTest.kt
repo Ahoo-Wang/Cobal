@@ -5,10 +5,10 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import me.ahoo.cobal.DefaultNode
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.state.DefaultNodeState
-import org.junit.jupiter.api.Assertions.assertThrows
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 import java.time.Duration
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class WeightedRandomLoadBalancerTest {
@@ -27,7 +27,7 @@ class WeightedRandomLoadBalancerTest {
         val state = DefaultNodeState(node)
         val lb = WeightedRandomLoadBalancer("wrandom-lb", listOf(state))
         repeat(10) {
-            assertEquals("node-1", lb.choose().node.id)
+            lb.choose().node.id.assert().isEqualTo("node-1")
         }
     }
 
@@ -63,12 +63,10 @@ class WeightedRandomLoadBalancerTest {
         val state2 = DefaultNodeState(node2, CircuitBreaker.of("node-2", strictCircuitBreakerConfig()))
         val lb = WeightedRandomLoadBalancer("wrandom-lb", listOf(state1, state2))
 
-        // Open node2's circuit breaker by recording a failure
         state2.circuitBreaker.onError(0, state2.circuitBreaker.timestampUnit, RuntimeException("error"))
 
-        // Only node-1 should be selected now
         repeat(10) {
-            assertEquals("node-1", lb.choose().node.id)
+            lb.choose().node.id.assert().isEqualTo("node-1")
         }
     }
 
@@ -80,7 +78,7 @@ class WeightedRandomLoadBalancerTest {
 
         state1.circuitBreaker.onError(0, state1.circuitBreaker.timestampUnit, RuntimeException("error"))
 
-        assertThrows(AllNodesUnavailableError::class.java) {
+        assertThrownBy<AllNodesUnavailableError> {
             lb.choose()
         }
     }

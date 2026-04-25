@@ -5,14 +5,14 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import me.ahoo.cobal.DefaultNode
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.state.DefaultNodeState
-import org.junit.jupiter.api.Assertions.assertThrows
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
-import kotlin.test.assertEquals
 
 class WeightedRoundRobinLoadBalancerTest {
     companion object {
@@ -36,8 +36,8 @@ class WeightedRoundRobinLoadBalancerTest {
             val chosen = lb.choose()
             counts[chosen.node.id] = counts[chosen.node.id]!! + 1
         }
-        assertEquals(9, counts["node-1"])
-        assertEquals(3, counts["node-2"])
+        counts["node-1"].assert().isEqualTo(9)
+        counts["node-2"].assert().isEqualTo(3)
     }
 
     @Test
@@ -51,7 +51,7 @@ class WeightedRoundRobinLoadBalancerTest {
         state2.circuitBreaker.onError(0, state2.circuitBreaker.timestampUnit, RuntimeException("error"))
 
         repeat(12) {
-            assertEquals("node-1", lb.choose().node.id)
+            lb.choose().node.id.assert().isEqualTo("node-1")
         }
     }
 
@@ -63,7 +63,7 @@ class WeightedRoundRobinLoadBalancerTest {
 
         state1.circuitBreaker.onError(0, state1.circuitBreaker.timestampUnit, RuntimeException("error"))
 
-        assertThrows(AllNodesUnavailableError::class.java) {
+        assertThrownBy<AllNodesUnavailableError> {
             lb.choose()
         }
     }
@@ -100,8 +100,8 @@ class WeightedRoundRobinLoadBalancerTest {
         }
         latch.await()
 
-        assertEquals(0, errorCount.get())
+        errorCount.get().assert().isEqualTo(0)
         val total = counts["node-1"]!!.get() + counts["node-2"]!!.get()
-        assertEquals(threadCount * iterations, total)
+        total.assert().isEqualTo(threadCount * iterations)
     }
 }

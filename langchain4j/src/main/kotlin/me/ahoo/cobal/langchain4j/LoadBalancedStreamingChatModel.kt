@@ -37,7 +37,7 @@ class LoadBalancedStreamingChatModel(
             if (nodeError.isInvalidRequest.not()) {
                 doChatWithRetry(prompt, delegate, remainingRetries - 1)
             }
-            delegate.onError(error)
+            delegate.onError(nodeError)
         }
     }
 

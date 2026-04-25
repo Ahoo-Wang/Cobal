@@ -32,8 +32,8 @@ class WeightedRandomLoadBalancer<NODE : Node>(
 
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
         val table = aliasTableRef.get()
-        if (table == null || available.size == 1) {
-            return available[0]
+        if (table == null || available.size == 1 || table.prob.size != available.size) {
+            return available[ThreadLocalRandom.current().nextInt(available.size)]
         }
         val random = ThreadLocalRandom.current()
         val slot = random.nextInt(available.size)

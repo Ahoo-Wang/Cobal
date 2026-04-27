@@ -11,7 +11,8 @@ typealias ImageModelNode = DefaultModelNode<ImageModel>
 
 class LoadBalancedImageModel(
     private val loadBalancer: LoadBalancer<ImageModelNode>,
-) : ImageModel {
+    private val delegate: ImageModel = loadBalancer.states.first().node.model,
+) : ImageModel by delegate {
 
     override fun generate(prompt: String): Response<Image> =
         loadBalancer.execute(LangChain4JNodeErrorConverter) { it.generate(prompt) }

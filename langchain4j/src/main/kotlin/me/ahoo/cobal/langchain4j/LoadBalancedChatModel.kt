@@ -11,8 +11,9 @@ typealias ChatModelNode = DefaultModelNode<ChatModel>
 
 class LoadBalancedChatModel(
     private val loadBalancer: LoadBalancer<ChatModelNode>,
-) : ChatModel {
+    private val delegate: ChatModel = loadBalancer.states.first().node.model,
+) : ChatModel by delegate {
 
-    override fun chat(request: ChatRequest): ChatResponse =
+    override fun doChat(request: ChatRequest): ChatResponse =
         loadBalancer.execute(LangChain4JNodeErrorConverter) { it.chat(request) }
 }

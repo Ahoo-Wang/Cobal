@@ -12,7 +12,9 @@ typealias EmbeddingModelNode = DefaultModelNode<EmbeddingModel>
 
 class LoadBalancedEmbeddingModel(
     private val loadBalancer: LoadBalancer<EmbeddingModelNode>,
-) : EmbeddingModel {
+    private val delegate: EmbeddingModel = loadBalancer.states.first().node.model,
+) : EmbeddingModel by delegate {
+
     override fun embedAll(textSegments: List<TextSegment>): Response<List<Embedding>> =
         loadBalancer.execute(LangChain4JNodeErrorConverter) { it.embedAll(textSegments) }
 }

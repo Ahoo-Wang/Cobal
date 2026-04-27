@@ -11,7 +11,8 @@ typealias AudioTranscriptionModelNode = DefaultModelNode<AudioTranscriptionModel
 
 class LoadBalancedAudioTranscriptionModel(
     private val loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
-) : AudioTranscriptionModel {
+    private val delegate: AudioTranscriptionModel = loadBalancer.states.first().node.model,
+) : AudioTranscriptionModel by delegate {
 
     override fun transcribe(request: AudioTranscriptionRequest): AudioTranscriptionResponse =
         loadBalancer.execute(LangChain4JNodeErrorConverter) { it.transcribe(request) }

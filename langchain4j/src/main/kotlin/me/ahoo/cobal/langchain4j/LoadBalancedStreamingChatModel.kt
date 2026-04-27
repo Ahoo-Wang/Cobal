@@ -1,6 +1,7 @@
 package me.ahoo.cobal.langchain4j
 
 import dev.langchain4j.model.chat.StreamingChatModel
+import dev.langchain4j.model.chat.request.ChatRequest
 import dev.langchain4j.model.chat.response.ChatResponse
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
 import me.ahoo.cobal.DefaultModelNode
@@ -15,13 +16,14 @@ typealias StreamingChatModelNode = DefaultModelNode<StreamingChatModel>
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
     private val maxAttempts: Int = 0,
-) : StreamingChatModel {
+    private val delegate: StreamingChatModel = loadBalancer.states.first().node.model,
+) : StreamingChatModel by delegate {
 
     private fun resolveAttempts(): Int =
         if (maxAttempts > 0) maxAttempts else loadBalancer.availableStates.size
 
     private inner class RetryingHandler(
-        private val prompt: String,
+        private val request: ChatRequest,
         private val start: Long,
         private val remainingRetries: Int,
         private val candidate: NodeState<StreamingChatModelNode>,
@@ -38,19 +40,19 @@ class LoadBalancedStreamingChatModel(
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
             if (nodeError.isInvalidRequest.not()) {
-                doChatWithRetry(prompt, delegate, remainingRetries - 1)
+                doChatWithRetry(request, this@RetryingHandler.delegate, remainingRetries - 1)
             } else {
                 delegate.onError(nodeError)
             }
         }
     }
 
-    override fun chat(prompt: String, handler: StreamingChatResponseHandler) {
-        doChatWithRetry(prompt, handler, resolveAttempts())
+    override fun doChat(request: ChatRequest, handler: StreamingChatResponseHandler) {
+        doChatWithRetry(request, handler, resolveAttempts())
     }
 
     private fun doChatWithRetry(
-        prompt: String,
+        request: ChatRequest,
         handler: StreamingChatResponseHandler,
         remainingRetries: Int,
     ) {
@@ -62,22 +64,22 @@ class LoadBalancedStreamingChatModel(
         val candidate = loadBalancer.choose()
         val acquired = candidate.tryAcquirePermission()
         if (!acquired) {
-            doChatWithRetry(prompt, handler, remainingRetries - 1)
+            doChatWithRetry(request, handler, remainingRetries - 1)
             return
         }
 
         val start = candidate.currentTimestamp
-        val retryingHandler = RetryingHandler(prompt, start, remainingRetries, candidate, handler)
+        val retryingHandler = RetryingHandler(request, start, remainingRetries, candidate, handler)
 
         @Suppress("TooGenericExceptionCaught")
         try {
-            candidate.node.model.chat(prompt, retryingHandler)
+            candidate.node.model.chat(request, retryingHandler)
         } catch (e: Exception) {
             val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, e)
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
             nodeError.throwIfInvalidRequest()
-            doChatWithRetry(prompt, handler, remainingRetries - 1)
+            doChatWithRetry(request, handler, remainingRetries - 1)
         }
     }
 }

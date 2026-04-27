@@ -1,5 +1,4 @@
 
-
 dependencies {
     api(project(":core"))
     api(libs.langchain4j.core)

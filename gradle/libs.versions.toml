@@ -1,9 +1,7 @@
 [versions]
 # Libs
 reactor = "3.7.3"
-spring-boot = "3.4.5"
-spring-ai-model = "1.1.0-M4"
-jackson-annotations = "2.21"
+spring-ai-model = "1.1.4"
 langchain4j = "1.13.0"
 resilience4j = "2.4.0"
 # Test
@@ -13,7 +11,6 @@ fluent-assert = "0.2.6"
 
 # Plugins
 kotlin = "2.3.20"
-coroutines = "1.10.2"
 dokka = "2.2.0"
 detekt = "1.23.8"
 publish-plugin = "2.0.0"
@@ -27,26 +24,16 @@ fluent-assert = { module = "me.ahoo.test:fluent-assert-core", version.ref = "flu
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 
-kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 resilience4j-circuitbreaker = { module = "io.github.resilience4j:resilience4j-circuitbreaker", version.ref = "resilience4j" }
 resilience4j-kotlin = { module = "io.github.resilience4j:resilience4j-kotlin", version.ref = "resilience4j" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-reactor-core = { module = "io.projectreactor:reactor-core", version.ref = "reactor" }
 reactor-test = { module = "io.projectreactor:reactor-test", version.ref = "reactor" }
 
-jackson-annotations= { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 langchain4j-core = { module = "dev.langchain4j:langchain4j", version.ref = "langchain4j" }
 langchain4j-openai = { module = "dev.langchain4j:langchain4j-open-ai", version.ref = "langchain4j" }
-spring-boot = { module = "org.springframework.boot:spring-boot", version.ref = "spring-boot" }
-spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure", version.ref = "spring-boot" }
-spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "spring-boot" }
-spring-boot-autoconfigure-processor = { module = "org.springframework.boot:spring-boot-autoconfigure-processor", version.ref = "spring-boot" }
-spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
 spring-ai-model = { module = "org.springframework.ai:spring-ai-model", version.ref = "spring-ai-model" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }

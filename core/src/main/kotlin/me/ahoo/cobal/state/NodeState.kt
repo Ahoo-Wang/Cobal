@@ -15,7 +15,7 @@ interface NodeState<NODE : Node> : AvailableCapable, CircuitBreaker {
 
     /** `true` when [node] has positive weight and [circuitBreaker] is in a non-OPEN state. */
     override val available: Boolean
-        get() = node.weight > 0 && circuitBreaker.state.available
+        get() = node.available && circuitBreaker.state.available
 }
 
 /**

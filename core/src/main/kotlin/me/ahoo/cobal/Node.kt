@@ -1,5 +1,7 @@
 package me.ahoo.cobal
 
+import me.ahoo.cobal.state.AvailableCapable
+
 /** Unique identifier for a [Node] in the load balancer. */
 typealias NodeId = String
 
@@ -9,12 +11,15 @@ typealias NodeId = String
  * Each node has a unique [id] and a [weight] that influences selection probability
  * in weighted algorithms. Nodes with `weight <= 0` are excluded from selection.
  */
-interface Node {
+interface Node : AvailableCapable {
     val id: NodeId
 
     /** Selection weight. Higher values mean more traffic. Defaults to 1. */
     val weight: Int
         get() = 1
+
+    override val available: Boolean
+        get() = weight > 0
 }
 
 /** Basic [Node] implementation. */

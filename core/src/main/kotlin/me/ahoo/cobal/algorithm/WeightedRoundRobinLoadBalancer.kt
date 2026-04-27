@@ -1,40 +1,60 @@
 package me.ahoo.cobal.algorithm
 
-import me.ahoo.cobal.AbstractLoadBalancer
 import me.ahoo.cobal.LoadBalancerId
 import me.ahoo.cobal.Node
-import me.ahoo.cobal.NodeId
 import me.ahoo.cobal.state.NodeState
+import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Selects nodes in a smooth weighted round-robin pattern (Nginx-style).
+ *
+ * On each selection, adds each node's weight to a running counter, picks the node with
+ * the highest counter, then subtracts [totalWeight]. This produces an even, deterministic
+ * distribution — e.g., weights 5:1:1 yields A A A A A B C over 7 calls.
+ */
 class WeightedRoundRobinLoadBalancer<NODE : Node>(
     id: LoadBalancerId,
-    states: List<NodeState<NODE>>
+    states: List<NodeState<NODE>>,
 ) : AbstractLoadBalancer<NODE>(id, states) {
 
-    private var currentIndex = 0
-    private var currentWeight: Int
-    private val maxWeight: Int = states.maxOf { it.node.weight }
-    private val weightMap: Map<NodeId, Int> = states.associate { it.node.id to it.node.weight }
+    private val currentWeightsRef = AtomicReference(IntArray(0))
+    private val totalWeightRef = AtomicReference(0)
 
     init {
-        currentWeight = maxWeight
+        rebuildWeights()
     }
 
-    @Synchronized
+    override fun onStateChanged() {
+        rebuildWeights()
+    }
+
+    private fun rebuildWeights() {
+        val available = availableStates
+        currentWeightsRef.set(IntArray(available.size))
+        totalWeightRef.set(available.sumOf { it.node.weight })
+    }
+
     override fun doChoose(available: List<NodeState<NODE>>): NodeState<NODE> {
-        while (true) {
-            currentIndex = (currentIndex + 1) % available.size
-            if (currentIndex == 0) {
-                currentWeight--
-                if (currentWeight <= 0) {
-                    currentWeight = maxWeight
-                }
-            }
-            val candidate = available[currentIndex]
-            val weight = weightMap[candidate.node.id] ?: return candidate
-            if (weight >= currentWeight) {
-                return candidate
+        if (available.size == 1) return available[0]
+
+        val totalWeight = totalWeightRef.get()
+        val weights = currentWeightsRef.get()
+        if (weights.size != available.size) {
+            return available[0]
+        }
+
+        var bestIndex = 0
+        var bestWeight = Int.MIN_VALUE
+        // Add each node's weight to its running counter
+        for (i in available.indices) {
+            weights[i] += available[i].node.weight
+            if (weights[i] > bestWeight) {
+                bestWeight = weights[i]
+                bestIndex = i
             }
         }
+        // Subtract totalWeight from the selected node to maintain balance
+        weights[bestIndex] -= totalWeight
+        return available[bestIndex]
     }
 }

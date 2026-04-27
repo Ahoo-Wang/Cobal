@@ -7,44 +7,48 @@ import dev.langchain4j.model.output.Response
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.AllNodesUnavailableError
+import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
-import me.ahoo.cobal.langchain4j.model.EmbeddingModelNode
+import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class LoadBalancedEmbeddingModelTest {
+
     @Test
-    fun `should use load balancer to choose node`() {
-        val mockModel = mockk<EmbeddingModel>()
-        every { mockModel.embedAll(any<List<TextSegment>>()) } returns Response.from(
-            listOf(Embedding.from(listOf(0.1f, 0.2f)))
-        )
+    fun `embedAll should delegate to underlying model`() {
+        val model = mockk<EmbeddingModel>()
+        val segments = listOf(TextSegment.from("hello"))
+        val expectedResponse = mockk<Response<List<Embedding>>>()
 
-        val node = EmbeddingModelNode("node-1", model = mockModel)
+        every { model.embedAll(any<List<TextSegment>>()) } returns expectedResponse
+
+        val node = DefaultModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxAttempts = 1)
+        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val balancedModel = LoadBalancedEmbeddingModel(lb)
 
-        val result = lbEmbedding.embedAll(listOf(TextSegment.from("hello")))
-        result.assert().isNotNull()
-        verify(exactly = 1) { mockModel.embedAll(any<List<TextSegment>>()) }
+        val result = balancedModel.embedAll(segments)
+        result.assert().isEqualTo(expectedResponse)
+        verify { model.embedAll(any<List<TextSegment>>()) }
     }
 
     @Test
-    fun `should throw AllNodesUnavailableError when all nodes fail`() {
-        val failingModel = mockk<EmbeddingModel>()
-        every { failingModel.embedAll(any<List<TextSegment>>()) } throws RuntimeException("error")
+    fun `embedAll should throw AllNodesUnavailableError when all models fail`() {
+        val model = mockk<EmbeddingModel>()
+        val segments = listOf(TextSegment.from("hello"))
 
-        val node = EmbeddingModelNode("node-1", model = failingModel)
+        every { model.embedAll(any<List<TextSegment>>()) } throws RuntimeException("fail")
+
+        val node = DefaultModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("lb", listOf(state))
-        val lbEmbedding = LoadBalancedEmbeddingModel(lb, maxAttempts = 1)
+        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val balancedModel = LoadBalancedEmbeddingModel(lb)
 
-        assertThrows<AllNodesUnavailableError> {
-            lbEmbedding.embedAll(listOf(TextSegment.from("hello")))
+        assertThrownBy<AllNodesUnavailableError> {
+            balancedModel.embedAll(segments)
         }
     }
 }

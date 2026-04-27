@@ -3,5 +3,5 @@
 dependencies {
     api(project(":core"))
     api(libs.langchain4j.core)
-    api(libs.langchain4j.openai)
+    implementation(libs.langchain4j.openai)
 }

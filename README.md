@@ -1,175 +1,123 @@
 # Cobal
 
-Reactive load balancing for LLM/AI client SDKs, built natively on Kotlin coroutines and Resilience4j circuit breakers.
+Load balancing library for LLM/AI client SDKs with Resilience4j circuit breakers.
 
-## Why Cobal?
+## Overview
 
-Distribute API requests across multiple LLM endpoints — each with its own API key — to handle rate limiting transparently. Designed for SaaS platforms where tenants provide their own keys and need per-tenant load balancer instances.
+Cobal distributes API requests across multiple LLM endpoints to handle rate limiting transparently. Each endpoint can have its own API key, making Cobal ideal for **SAAS platforms where tenants provide their own API keys** and need per-tenant load balancer instances.
 
 ## Features
 
-- **Load Balancing Algorithms** — Random, RoundRobin, WeightedRandom (Alias Method), WeightedRoundRobin (Nginx smooth WRR)
-- **Circuit Breaker** — Built on Resilience4j; auto-opens on consecutive failures, skips unhealthy endpoints
-- **Automatic Retry** — Retriable errors (429, 5xx, timeout, network) trigger failover to the next node
-- **Smart Short-Circuit** — Invalid requests (400) and auth errors (401/403) fail immediately without wasting retries
-- **Streaming Support** — Callback-based retry for LangChain4j, Flux-based retry for Spring AI
-- **Tenant-Scoped Registry** — Thread-safe `LoadBalancerRegistry` for per-tenant LB caching
+- **Multiple Load Balancing Algorithms**: Random, Round-Robin, Weighted Random (O(1) via Vose's Alias Method), and Smooth Weighted Round-Robin (Nginx-style)
+- **Circuit Breaker Integration**: Built on Resilience4j for fault tolerance with per-endpoint health tracking
+- **Transparent Retries**: Automatic retry with configurable error handling
+- **Framework Integrations**:
+  - LangChain4j (`me.ahoo.cobal:langchain4j`)
+  - Spring AI (`me.ahoo.cobal:spring-ai`)
+- **Type-safe Error Handling**: Hierarchical error model with retriable/non-retriable classification
+- **Tenant-scoped Instances**: Thread-safe registry for per-tenant load balancer caching
 
-## Installation
+## Modules
 
-### Gradle (Kotlin DSL)
-
-```kotlin
-// Use the BOM for version alignment
-implementation(platform("me.ahoo.cobal:cobal-bom:0.0.1"))
-
-// Core only (framework-agnostic)
-implementation("me.ahoo.cobal:cobal-core")
-
-// LangChain4j integration
-implementation("me.ahoo.cobal:cobal-langchain4j")
-
-// Spring AI integration
-implementation("me.ahoo.cobal:cobal-spring-ai")
 ```
+core  ── Framework-agnostic abstractions (Node, LoadBalancer, algorithms)
+  │
+  ├── langchain4j  ── LangChain4j integration (Chat, Streaming, Embedding, Image, Audio)
+  └── spring-ai    ── Spring AI integration (Chat, Embedding, Image, Audio)
 
-### Maven
-
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cobal</groupId>
-            <artifactId>cobal-bom</artifactId>
-            <version>0.0.1</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
-
-<dependency>
-    <groupId>me.ahoo.cobal</groupId>
-    <artifactId>cobal-langchain4j</artifactId>
-</dependency>
+bom  ── Bill of Materials for centralized dependency management
 ```
 
 ## Quick Start
 
-### LangChain4j
+### Gradle Setup
 
 ```kotlin
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.RoundRobinLoadBalancer
-import me.ahoo.cobal.langchain4j.LoadBalancedChatModel
-import me.ahoo.cobal.state.DefaultNodeState
-import dev.langchain4j.model.openai.OpenAiChatModel
-
-// Create model instances (each with a different API key)
-val models = listOf(
-    OpenAiChatModel.builder().apiKey("key-1").build(),
-    OpenAiChatModel.builder().apiKey("key-2").build(),
-    OpenAiChatModel.builder().apiKey("key-3").build(),
-)
-
-// Wrap each as a node with circuit breaker
-val nodes = models.mapIndexed { i, model ->
-    DefaultModelNode("endpoint-$i", model = model)
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
 }
-val states = nodes.map { DefaultNodeState(it) }
+
+// core module
+implementation("me.ahoo.cobal:core:0.0.2")
+
+// LangChain4j integration
+implementation("me.ahoo.cobal:langchain4j:0.0.2")
+
+// Spring AI integration
+implementation("me.ahoo.cobal:spring-ai:0.0.2")
+
+// Or use BOM
+implementation(platform("me.ahoo.cobal:bom:0.0.2"))
+implementation("me.ahoo.cobal:core")
+implementation("me.ahoo.cobal:langchain4j")
+```
+
+### Basic Usage
+
+```kotlin
+import me.ahoo.cobal.*
+import me.ahoo.cobal.langchain4j.*
+
+// Create nodes with models
+val model1 = OpenAiChatModel.builder().apiKey("key1").build()
+val model2 = OpenAiChatModel.builder().apiKey("key2").build()
+
+val node1 = DefaultModelNode("node-1", weight = 5, model = model1)
+val node2 = DefaultModelNode("node-2", weight = 1, model = model2)
 
 // Create load balancer
-val loadBalancer = RoundRobinLoadBalancer("my-tenant-lb", states)
+val lb = RoundRobinLoadBalancer("my-lb", listOf(
+    NodeState(node1, CircuitBreakers.of("node-1")),
+    NodeState(node2, CircuitBreakers.of("node-2"))
+))
 
-// Use the load-balanced model
-val balancedModel = LoadBalancedChatModel(loadBalancer)
-val response = balancedModel.chat("Tell me a joke")
+// Use as drop-in replacement
+val balancedModel = LoadBalancedChatModel(lb)
+val response = balancedModel.chat(ChatRequest("Hello!"))
 ```
 
-### Spring AI
+### Supported Algorithms
+
+| Algorithm | Description |
+|-----------|-------------|
+| `RandomLoadBalancer` | Uniform random selection |
+| `RoundRobinLoadBalancer` | Strict round-robin |
+| `WeightedRandomLoadBalancer` | Weighted random with O(1) selection |
+| `WeightedRoundRobinLoadBalancer` | Smooth weighted round-robin (Nginx-style) |
+
+### Error Handling
+
+Cobal classifies errors for intelligent retry decisions:
 
 ```kotlin
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.WeightedRoundRobinLoadBalancer
-import me.ahoo.cobal.springai.LoadBalancedChatModel
-import me.ahoo.cobal.state.DefaultNodeState
+// Retriable errors (will retry on different node)
+// - RateLimitError (429)
+// - ServerError (5xx)
+// - TimeoutError
+// - NetworkError
 
-// Create nodes with different weights
-val nodes = listOf(
-    DefaultModelNode("primary", weight = 5, model = primaryChatModel),
-    DefaultModelNode("secondary", weight = 3, model = secondaryChatModel),
-    DefaultModelNode("fallback", weight = 1, model = fallbackChatModel),
-)
-val states = nodes.map { DefaultNodeState(it) }
-
-val loadBalancer = WeightedRoundRobinLoadBalancer("tenant-lb", states)
-val balancedModel = LoadBalancedChatModel(loadBalancer)
-
-// Sync call
-val response = balancedModel.call(prompt)
-
-// Reactive streaming (with automatic retry before first emission)
-val stream = balancedModel.stream(prompt)
+// Non-retriable errors (short-circuit)
+// - AuthenticationError (401/403)
+// - InvalidRequestError (400)
 ```
 
-## Load Balancing Algorithms
-
-| Algorithm | Selection | Use Case |
-|-----------|-----------|----------|
-| `RandomLoadBalancer` | Uniform random | Simple distribution |
-| `RoundRobinLoadBalancer` | Sequential round-robin | Equal-weight endpoints |
-| `WeightedRandomLoadBalancer` | Alias Method (O(1)) | Unequal capacity, probabilistic |
-| `WeightedRoundRobinLoadBalancer` | Nginx smooth WRR | Deterministic weighted distribution |
-
-## Error Handling
-
-Cobal classifies errors to decide whether to retry:
-
-| Error | HTTP | Retriable | Behavior |
-|-------|------|-----------|----------|
-| `RateLimitError` | 429 | Yes | Retry on next node |
-| `ServerError` | 5xx | Yes | Retry on next node |
-| `TimeoutError` | — | Yes | Retry on next node |
-| `NetworkError` | — | Yes | Retry on next node |
-| `AuthenticationError` | 401/403 | No | Fail immediately |
-| `InvalidRequestError` | 400 | No | Fail immediately, ignored by circuit breaker |
-| `AllNodesUnavailableError` | — | — | All retry attempts exhausted |
-
-## Tenant-Scoped Load Balancers
-
-```kotlin
-val registry = DefaultLoadBalancerRegistry()
-
-// Get or create a per-tenant load balancer
-val lb = registry.getOrCreate("tenant-123") {
-    RoundRobinLoadBalancer("tenant-123", tenantNodes.map { DefaultNodeState(it) })
-}
-```
-
-## Module Architecture
+## Request Flow
 
 ```
-core  (kotlinx-coroutines, resilience4j-circuitbreaker)
- ├── langchain4j  (langchain4j core + openai)
- └── spring-ai    (spring-ai-model, reactor-core)
-
-bom  (version alignment)
-```
-
-## Requirements
-
-- **JVM**: 17+
-- **Kotlin**: 2.3.20
-
-## Building
-
-```bash
-./gradlew build          # Full build
-./gradlew test           # Run all tests
-./gradlew :core:test     # Run tests for a specific module
-./gradlew detekt         # Code quality checks
+LoadBalancedModel.chat(request)
+  → LoadBalancer.execute() {
+      → choose() - Filter available nodes & select via algorithm
+      → tryAcquirePermission() - Check circuit breaker state
+      → model.chat(request)
+        → Success → record metrics
+        → Failure → convert error → record failure → decide retry?
+      → All attempts exhausted → throw AllNodesUnavailableError
+    }
 ```
 
 ## License
 
-[Apache License 2.0](LICENSE)
+The Apache Software License, Version 2.0 - [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)

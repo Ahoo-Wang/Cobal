@@ -11,8 +11,24 @@ import me.ahoo.cobal.error.isInvalidRequest
 import me.ahoo.cobal.error.throwIfInvalidRequest
 import me.ahoo.cobal.state.NodeState
 
+/** Node type for [StreamingChatModel] endpoints. */
 typealias StreamingChatModelNode = DefaultModelNode<StreamingChatModel>
 
+/**
+ * Load-balanced [StreamingChatModel] that distributes streaming chat requests across multiple endpoints.
+ *
+ * Unlike the synchronous models, this class implements its own callback-based retry loop because
+ * [StreamingChatModel] is callback-driven (via [StreamingChatResponseHandler]) and cannot use
+ * the synchronous [LoadBalancer.execute] extension.
+ *
+ * On each attempt: acquires circuit breaker permission, dispatches to the selected node's model
+ * with a [RetryingHandler], and records success/failure with timing.
+ * [InvalidRequestError] short-circuits immediately — bad requests won't succeed on another node.
+ *
+ * @param loadBalancer the load balancer managing streaming chat model nodes
+ * @param maxAttempts maximum retry attempts; defaults to the number of available nodes when set to 0
+ * @param delegate used for Kotlin `by` delegation to inherit default method implementations
+ */
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
     private val maxAttempts: Int = 0,
@@ -22,6 +38,10 @@ class LoadBalancedStreamingChatModel(
     private fun resolveAttempts(): Int =
         if (maxAttempts > 0) maxAttempts else loadBalancer.availableStates.size
 
+    /**
+     * [StreamingChatResponseHandler] that records success/failure timing on the [candidate] node state
+     * and retries on retriable errors via [doChatWithRetry].
+     */
     private inner class RetryingHandler(
         private val request: ChatRequest,
         private val start: Long,

@@ -7,8 +7,15 @@ import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.execute
 
+/** Node type for [AudioTranscriptionModel] endpoints. */
 typealias AudioTranscriptionModelNode = DefaultModelNode<AudioTranscriptionModel>
 
+/**
+ * Load-balanced [AudioTranscriptionModel] that distributes audio transcription requests across multiple endpoints.
+ *
+ * Delegates execution to [LoadBalancer.execute] with [LangChain4JNodeErrorConverter] for
+ * automatic retry, circuit breaker integration, and error classification.
+ */
 class LoadBalancedAudioTranscriptionModel(
     private val loadBalancer: LoadBalancer<AudioTranscriptionModelNode>,
     private val delegate: AudioTranscriptionModel = loadBalancer.states.first().node.model,

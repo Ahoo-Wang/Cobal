@@ -7,8 +7,15 @@ import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.execute
 
+/** Node type for [ChatModel] endpoints. */
 typealias ChatModelNode = DefaultModelNode<ChatModel>
 
+/**
+ * Load-balanced [ChatModel] that distributes synchronous chat requests across multiple endpoints.
+ *
+ * Delegates execution to [LoadBalancer.execute] with [LangChain4JNodeErrorConverter] for
+ * automatic retry, circuit breaker integration, and error classification.
+ */
 class LoadBalancedChatModel(
     private val loadBalancer: LoadBalancer<ChatModelNode>,
     private val delegate: ChatModel = loadBalancer.states.first().node.model,

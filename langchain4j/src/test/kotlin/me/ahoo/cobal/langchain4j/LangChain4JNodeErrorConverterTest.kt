@@ -64,10 +64,17 @@ class LangChain4JNodeErrorConverterTest {
     }
 
     @Test
-    fun `convert HttpException to ServerError`() {
+    fun `convert HttpException with 5xx to ServerError`() {
         val error = HttpException(500, "server error")
         val nodeError = LangChain4JNodeErrorConverter.convert("node-1", error)
         nodeError.assert().isInstanceOf(ServerError::class.java)
+    }
+
+    @Test
+    fun `convert HttpException with 4xx to InvalidRequestError`() {
+        val error = HttpException(422, "unprocessable entity")
+        val nodeError = LangChain4JNodeErrorConverter.convert("node-1", error)
+        nodeError.assert().isInstanceOf(InvalidRequestError::class.java)
     }
 
     @Test

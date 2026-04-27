@@ -8,8 +8,15 @@ import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.execute
 
+/** Node type for [EmbeddingModel] endpoints. */
 typealias EmbeddingModelNode = DefaultModelNode<EmbeddingModel>
 
+/**
+ * Load-balanced [EmbeddingModel] that distributes embedding requests across multiple endpoints.
+ *
+ * Delegates execution to [LoadBalancer.execute] with [LangChain4JNodeErrorConverter] for
+ * automatic retry, circuit breaker integration, and error classification.
+ */
 class LoadBalancedEmbeddingModel(
     private val loadBalancer: LoadBalancer<EmbeddingModelNode>,
     private val delegate: EmbeddingModel = loadBalancer.states.first().node.model,

@@ -22,6 +22,12 @@ abstract class AbstractLoadBalancer<NODE : Node>(
     override val availableStates: List<NodeState<NODE>>
         get() = availableStatesRef.get()
 
+    init {
+        check(states.isNotEmpty()) {
+            "LoadBalancer must have at least one node."
+        }
+    }
+
     // Subscribe to state transitions to keep cached availableStates in sync
     init {
         states.forEach { nodeState ->

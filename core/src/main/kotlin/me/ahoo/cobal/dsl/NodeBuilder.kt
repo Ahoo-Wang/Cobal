@@ -6,7 +6,7 @@ import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.state.DEFAULT_CIRCUIT_BREAKER_CONFIG
 
 @CobalDsl
-class NodeBuilder<MODEL : Any> internal constructor(
+class NodeBuilder<MODEL : Any>(
     private val id: String,
     private val weight: Int,
 ) {
@@ -21,7 +21,7 @@ class NodeBuilder<MODEL : Any> internal constructor(
         this.circuitBreakerConfig = CircuitBreakerConfig(block)
     }
 
-    internal fun build(): Pair<DefaultModelNode<MODEL>, CircuitBreakerConfig> {
+    fun build(): Pair<DefaultModelNode<MODEL>, CircuitBreakerConfig> {
         val model = checkNotNull(model) {
             "model() must be called exactly once for node '$id'."
         }

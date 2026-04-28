@@ -7,10 +7,8 @@ import dev.langchain4j.model.chat.response.ChatResponse
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.RandomLoadBalancer
+import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -25,9 +23,10 @@ class LoadBalancedChatModelTest {
 
         every { model.chat(any<ChatRequest>()) } returns expectedResponse
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         val result = balancedModel.chat(request)
@@ -42,9 +41,10 @@ class LoadBalancedChatModelTest {
 
         every { model.chat(any<ChatRequest>()) } throws RuntimeException("fail")
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         assertThrownBy<AllNodesUnavailableError> {

@@ -1,15 +1,11 @@
 package me.ahoo.cobal.springai
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.RandomLoadBalancer
-import me.ahoo.cobal.algorithm.RoundRobinLoadBalancer
+import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -22,15 +18,6 @@ import java.time.Duration
 
 class LoadBalancedChatModelTest {
 
-    companion object {
-        private fun strictCircuitBreakerConfig() = CircuitBreakerConfig.custom()
-            .failureRateThreshold(100.0f)
-            .slidingWindowSize(1)
-            .minimumNumberOfCalls(1)
-            .waitDurationInOpenState(Duration.ofSeconds(60))
-            .build()
-    }
-
     @Test
     fun `call should delegate to underlying model`() {
         val model = mockk<ChatModel>()
@@ -39,9 +26,10 @@ class LoadBalancedChatModelTest {
 
         every { model.call(any<Prompt>()) } returns expectedResponse
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         val result = balancedModel.call(prompt)
@@ -56,9 +44,10 @@ class LoadBalancedChatModelTest {
 
         every { model.call(any<Prompt>()) } throws RuntimeException("fail")
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         assertThrownBy<AllNodesUnavailableError> {
@@ -72,9 +61,10 @@ class LoadBalancedChatModelTest {
         val response = mockk<ChatResponse>()
         every { model.stream(any<Prompt>()) } returns Flux.just(response)
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
@@ -90,9 +80,11 @@ class LoadBalancedChatModelTest {
         val response = mockk<ChatResponse>()
         every { model2.stream(any<Prompt>()) } returns Flux.just(response)
 
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
@@ -107,9 +99,10 @@ class LoadBalancedChatModelTest {
         every { model.stream(any<Prompt>()) } returns Flux.just(response)
             .concatWith(Flux.error(RuntimeException("mid-stream fail")))
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
@@ -123,9 +116,10 @@ class LoadBalancedChatModelTest {
         val model = mockk<ChatModel>()
         every { model.stream(any<Prompt>()) } returns Flux.error(RuntimeException("fail"))
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
@@ -140,13 +134,24 @@ class LoadBalancedChatModelTest {
         val response = mockk<ChatResponse>()
         every { model2.stream(any<Prompt>()) } returns Flux.just(response)
 
-        val cb1 = CircuitBreaker.of("node-1", strictCircuitBreakerConfig())
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
+
+        val cb1 = lb.states[0].circuitBreaker
         cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
         cb1.state.assert().isEqualTo(CircuitBreaker.State.OPEN)
 
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
         val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))

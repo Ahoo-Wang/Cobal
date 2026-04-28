@@ -1,9 +1,9 @@
 package me.ahoo.cobal.dsl
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.LoadBalancerId
-import me.ahoo.cobal.ModelNode
 import me.ahoo.cobal.algorithm.RandomLoadBalancer
 import me.ahoo.cobal.algorithm.RoundRobinLoadBalancer
 import me.ahoo.cobal.algorithm.WeightedRandomLoadBalancer
@@ -12,7 +12,7 @@ import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.cobal.state.NodeState
 
 private typealias AlgorithmFactory<MODEL> =
-    (LoadBalancerId, List<NodeState<ModelNode<MODEL>>>) -> LoadBalancer<ModelNode<MODEL>>
+    (LoadBalancerId, List<NodeState<DefaultModelNode<MODEL>>>) -> LoadBalancer<DefaultModelNode<MODEL>>
 
 @CobalDsl
 class LoadBalancerBuilder<MODEL : Any> {
@@ -40,10 +40,10 @@ class LoadBalancerBuilder<MODEL : Any> {
         nodeBuilders.add(NodeBuilder<MODEL>(id, weight).apply(block))
     }
 
-    internal fun build(id: LoadBalancerId): LoadBalancer<ModelNode<MODEL>> {
+    internal fun build(id: LoadBalancerId): LoadBalancer<DefaultModelNode<MODEL>> {
         require(nodeBuilders.isNotEmpty()) { "At least one node must be added." }
 
-        val states: List<NodeState<ModelNode<MODEL>>> = nodeBuilders.map { builder ->
+        val states = nodeBuilders.map { builder ->
             val (modelNode, circuitBreakerConfig) = builder.build()
             val circuitBreaker = CircuitBreaker.of(modelNode.id, circuitBreakerConfig)
             DefaultNodeState(modelNode, circuitBreaker)
@@ -56,5 +56,5 @@ class LoadBalancerBuilder<MODEL : Any> {
 fun <MODEL : Any> loadBalancer(
     id: LoadBalancerId,
     block: LoadBalancerBuilder<MODEL>.() -> Unit,
-): LoadBalancer<ModelNode<MODEL>> =
+): LoadBalancer<DefaultModelNode<MODEL>> =
     LoadBalancerBuilder<MODEL>().apply(block).build(id)

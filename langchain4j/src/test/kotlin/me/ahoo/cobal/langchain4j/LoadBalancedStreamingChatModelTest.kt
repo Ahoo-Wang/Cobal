@@ -6,30 +6,18 @@ import dev.langchain4j.model.chat.request.ChatRequest
 import dev.langchain4j.model.chat.response.ChatResponse
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.RoundRobinLoadBalancer
+import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.InvalidRequestError
-import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Duration
 
 class LoadBalancedStreamingChatModelTest {
-
-    companion object {
-        private fun strictCircuitBreakerConfig() = CircuitBreakerConfig.custom()
-            .failureRateThreshold(100.0f)
-            .slidingWindowSize(1)
-            .minimumNumberOfCalls(1)
-            .waitDurationInOpenState(Duration.ofSeconds(60))
-            .build()
-    }
 
     @Test
     fun `chat should stream response successfully on first attempt`() {
@@ -40,9 +28,10 @@ class LoadBalancedStreamingChatModelTest {
 
         every { model.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
@@ -64,10 +53,19 @@ class LoadBalancedStreamingChatModelTest {
         every { model1.chat(any<ChatRequest>(), capture(handler1Slot)) } answers { }
         every { model2.chat(any<ChatRequest>(), capture(handler2Slot)) } answers { }
 
-        val cb1 = CircuitBreaker.of("node-1", strictCircuitBreakerConfig())
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
@@ -91,9 +89,10 @@ class LoadBalancedStreamingChatModelTest {
 
         every { model.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
@@ -115,9 +114,11 @@ class LoadBalancedStreamingChatModelTest {
         every { model1.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
         every { model2.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
 
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
@@ -139,13 +140,24 @@ class LoadBalancedStreamingChatModelTest {
 
         every { model2.chat(any<ChatRequest>(), capture(handler2Slot)) } answers { }
 
-        val cb1 = CircuitBreaker.of("node-1", strictCircuitBreakerConfig())
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
+
+        val cb1 = lb.states[0].circuitBreaker
         cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
         cb1.state.assert().isEqualTo(CircuitBreaker.State.OPEN)
 
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
@@ -169,10 +181,19 @@ class LoadBalancedStreamingChatModelTest {
         every { model1.chat(any<ChatRequest>(), capture(handler1Slot)) } answers { }
         every { model2.chat(any<ChatRequest>(), capture(handler2Slot)) } answers { }
 
-        val cb1 = CircuitBreaker.of("node-1", strictCircuitBreakerConfig())
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
@@ -197,15 +218,25 @@ class LoadBalancedStreamingChatModelTest {
 
         every { model2.chat(any<ChatRequest>(), capture(handler2Slot)) } answers { }
 
-        val cb1 = CircuitBreaker.of("node-1", strictCircuitBreakerConfig())
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
 
         lb.availableStates.size.assert().isEqualTo(2)
         val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         // Trip CB to reduce available states to 1
+        val cb1 = lb.states[0].circuitBreaker
         cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
         lb.availableStates.size.assert().isEqualTo(1)
 

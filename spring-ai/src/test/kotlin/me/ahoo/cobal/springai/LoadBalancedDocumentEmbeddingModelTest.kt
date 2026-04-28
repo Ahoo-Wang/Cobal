@@ -3,10 +3,8 @@ package me.ahoo.cobal.springai
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.RandomLoadBalancer
+import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -24,9 +22,10 @@ class LoadBalancedDocumentEmbeddingModelTest {
 
         every { model.call(any<DocumentEmbeddingRequest>()) } returns expectedResponse
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<DocumentEmbeddingModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedDocumentEmbeddingModel(lb)
 
         val result = balancedModel.call(request)
@@ -39,9 +38,10 @@ class LoadBalancedDocumentEmbeddingModelTest {
         val model = mockk<DocumentEmbeddingModel>()
         every { model.dimensions() } returns 1536
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<DocumentEmbeddingModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedDocumentEmbeddingModel(lb)
 
         val result = balancedModel.dimensions()
@@ -56,9 +56,10 @@ class LoadBalancedDocumentEmbeddingModelTest {
 
         every { model.call(any<DocumentEmbeddingRequest>()) } throws RuntimeException("fail")
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<DocumentEmbeddingModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedDocumentEmbeddingModel(lb)
 
         assertThrownBy<AllNodesUnavailableError> {

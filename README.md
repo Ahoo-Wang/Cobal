@@ -2,6 +2,10 @@
 
 Load balancing library for LLM/AI client SDKs with Resilience4j circuit breakers.
 
+[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Cobal/blob/main/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/me.ahoo.cobal/cobal-core)](https://central.sonatype.com/artifact/me.ahoo.cobal/cobal-core)
+[![codecov](https://codecov.io/gh/Ahoo-Wang/Cobal/graph/badge.svg?token=PQhmX3mgo4)](https://codecov.io/gh/Ahoo-Wang/Cobal)
+
 ## Overview
 
 Cobal distributes API requests across multiple LLM endpoints to handle rate limiting transparently. Each endpoint can have its own API key, making Cobal ideal for **SAAS platforms where tenants provide their own API keys** and need per-tenant load balancer instances.

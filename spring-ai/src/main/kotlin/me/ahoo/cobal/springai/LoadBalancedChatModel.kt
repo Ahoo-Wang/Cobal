@@ -16,8 +16,8 @@ typealias ChatModelNode = DefaultModelNode<ChatModel>
  * across multiple endpoints.
  *
  * [call] delegates to [LoadBalancer.execute] for synchronous retry.
- * [stream] implements reactive Flux-based retry with emission tracking — does not retry
- * after data has been emitted to the subscriber.
+ * [stream] uses [streamExecute] for reactive Flux-based retry with emission tracking —
+ * does not retry after data has been emitted to the subscriber.
  *
  * @param loadBalancer the load balancer managing chat model nodes
  * @param maxAttempts maximum retry attempts; defaults to the number of available nodes when set to 0
@@ -35,9 +35,6 @@ class LoadBalancedChatModel(
     override fun call(prompt: Prompt): ChatResponse =
         loadBalancer.execute(SpringAiNodeErrorConverter) { it.call(prompt) }
 
-    override fun stream(prompt: Prompt): Flux<ChatResponse> {
-        return loadBalancer.streamExecute(SpringAiNodeErrorConverter, resolveAttempts()) {
-            it.stream(prompt)
-        }
-    }
+    override fun stream(prompt: Prompt): Flux<ChatResponse> =
+        loadBalancer.streamExecute(SpringAiNodeErrorConverter, resolveAttempts()) { it.stream(prompt) }
 }

@@ -1,15 +1,11 @@
 package me.ahoo.cobal.springai
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.cobal.DefaultModelNode
-import me.ahoo.cobal.algorithm.RandomLoadBalancer
-import me.ahoo.cobal.algorithm.RoundRobinLoadBalancer
+import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.state.DefaultNodeState
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -22,15 +18,6 @@ import java.time.Duration
 
 class LoadBalancedTextToSpeechModelTest {
 
-    companion object {
-        private fun strictCircuitBreakerConfig() = CircuitBreakerConfig.custom()
-            .failureRateThreshold(100.0f)
-            .slidingWindowSize(1)
-            .minimumNumberOfCalls(1)
-            .waitDurationInOpenState(Duration.ofSeconds(60))
-            .build()
-    }
-
     @Test
     fun `call should delegate to underlying model`() {
         val model = mockk<TextToSpeechModel>()
@@ -39,9 +26,10 @@ class LoadBalancedTextToSpeechModelTest {
 
         every { model.call(any<TextToSpeechPrompt>()) } returns expectedResponse
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         val result = balancedModel.call(prompt)
@@ -56,9 +44,10 @@ class LoadBalancedTextToSpeechModelTest {
 
         every { model.call(any<TextToSpeechPrompt>()) } throws RuntimeException("fail")
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         assertThrownBy<AllNodesUnavailableError> {
@@ -72,9 +61,10 @@ class LoadBalancedTextToSpeechModelTest {
         val response = mockk<TextToSpeechResponse>()
         every { model.stream(any<TextToSpeechPrompt>()) } returns Flux.just(response)
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
@@ -90,9 +80,11 @@ class LoadBalancedTextToSpeechModelTest {
         val response = mockk<TextToSpeechResponse>()
         every { model2.stream(any<TextToSpeechPrompt>()) } returns Flux.just(response)
 
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
@@ -107,9 +99,10 @@ class LoadBalancedTextToSpeechModelTest {
         every { model.stream(any<TextToSpeechPrompt>()) } returns Flux.just(response)
             .concatWith(Flux.error(RuntimeException("mid-stream fail")))
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
@@ -123,9 +116,10 @@ class LoadBalancedTextToSpeechModelTest {
         val model = mockk<TextToSpeechModel>()
         every { model.stream(any<TextToSpeechPrompt>()) } returns Flux.error(RuntimeException("fail"))
 
-        val node = DefaultModelNode("node-1", model = model)
-        val state = DefaultNodeState(node)
-        val lb = RandomLoadBalancer("test-lb", listOf(state))
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            random()
+            node("node-1") { model(model) }
+        }
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
@@ -140,13 +134,24 @@ class LoadBalancedTextToSpeechModelTest {
         val response = mockk<TextToSpeechResponse>()
         every { model2.stream(any<TextToSpeechPrompt>()) } returns Flux.just(response)
 
-        val cb1 = CircuitBreaker.of("node-1", strictCircuitBreakerConfig())
+        val lb = loadBalancer<TextToSpeechModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
+
+        val cb1 = lb.states[0].circuitBreaker
         cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
         cb1.state.assert().isEqualTo(CircuitBreaker.State.OPEN)
 
-        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
-        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
         val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))

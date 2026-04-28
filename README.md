@@ -46,16 +46,16 @@ dependencyResolutionManagement {
 }
 
 // core module
-implementation("me.ahoo.cobal:core:0.0.2")
+implementation("me.ahoo.cobal:core:0.2.0")
 
 // LangChain4j integration
-implementation("me.ahoo.cobal:langchain4j:0.0.2")
+implementation("me.ahoo.cobal:langchain4j:0.2.0")
 
 // Spring AI integration
-implementation("me.ahoo.cobal:spring-ai:0.0.2")
+implementation("me.ahoo.cobal:spring-ai:0.2.0")
 
 // Or use BOM
-implementation(platform("me.ahoo.cobal:bom:0.0.2"))
+implementation(platform("me.ahoo.cobal:bom:0.2.0"))
 implementation("me.ahoo.cobal:core")
 implementation("me.ahoo.cobal:langchain4j")
 ```

@@ -27,3 +27,6 @@ build
 
 # Ignore Kotlin plugin data
 .kotlin
+
+# Ignore superpowers documentation
+./docs/superpowers

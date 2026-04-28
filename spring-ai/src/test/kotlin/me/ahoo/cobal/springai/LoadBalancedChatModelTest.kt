@@ -92,7 +92,7 @@ class LoadBalancedChatModelTest {
 
         val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
         val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
-        val lb = RandomLoadBalancer("test-lb", listOf(state1, state2))
+        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
         val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))

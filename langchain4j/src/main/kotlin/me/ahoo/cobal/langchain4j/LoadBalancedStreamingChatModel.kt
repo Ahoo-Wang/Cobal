@@ -31,12 +31,8 @@ typealias StreamingChatModelNode = DefaultModelNode<StreamingChatModel>
  */
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
-    private val maxAttempts: Int = 0,
     private val delegate: StreamingChatModel = loadBalancer.states.first().node.model,
 ) : StreamingChatModel by delegate {
-
-    private fun resolveAttempts(): Int =
-        if (maxAttempts > 0) maxAttempts else loadBalancer.availableStates.size
 
     /**
      * [StreamingChatResponseHandler] that records success/failure timing on the [candidate] node state
@@ -68,7 +64,7 @@ class LoadBalancedStreamingChatModel(
     }
 
     override fun doChat(request: ChatRequest, handler: StreamingChatResponseHandler) {
-        doChatWithRetry(request, handler, resolveAttempts())
+        doChatWithRetry(request, handler, loadBalancer.availableStates.size)
     }
 
     private fun doChatWithRetry(

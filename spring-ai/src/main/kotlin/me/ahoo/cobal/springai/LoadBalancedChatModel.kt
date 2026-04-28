@@ -25,16 +25,12 @@ typealias ChatModelNode = DefaultModelNode<ChatModel>
  */
 class LoadBalancedChatModel(
     private val loadBalancer: LoadBalancer<ChatModelNode>,
-    private val maxAttempts: Int = 0,
     private val delegate: ChatModel = loadBalancer.states.first().node.model,
 ) : ChatModel by delegate {
-
-    private fun resolveAttempts(): Int =
-        if (maxAttempts > 0) maxAttempts else loadBalancer.availableStates.size
 
     override fun call(prompt: Prompt): ChatResponse =
         loadBalancer.execute(SpringAiNodeErrorConverter) { it.call(prompt) }
 
     override fun stream(prompt: Prompt): Flux<ChatResponse> =
-        loadBalancer.streamExecute(SpringAiNodeErrorConverter, resolveAttempts()) { it.stream(prompt) }
+        loadBalancer.streamExecute(SpringAiNodeErrorConverter, loadBalancer.availableStates.size) { it.stream(prompt) }
 }

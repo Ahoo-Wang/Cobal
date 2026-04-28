@@ -15,6 +15,7 @@ import java.time.Duration
  * - Count-based sliding window of 5: opens after 5 consecutive failures.
  * - 60s open-state wait: aligns with typical rate-limit reset windows.
  * - [InvalidRequestError] ignored: 400 errors reflect caller issues, not endpoint health.
+ * - Slow-call detection disabled (default `slowCallRateThreshold = 100%`): LLM tasks (text generation, image editing, etc.) are inherently long-running; call duration does not indicate endpoint health.
  */
 val DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = CircuitBreakerConfig {
     failureRateThreshold(100.0f)

@@ -93,7 +93,7 @@ class LoadBalancedTextToSpeechModelTest {
         val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
         val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
         val lb = RandomLoadBalancer("test-lb", listOf(state1, state2))
-        val balancedModel = LoadBalancedTextToSpeechModel(lb, maxAttempts = 2)
+        val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
             .expectNext(response)
@@ -110,7 +110,7 @@ class LoadBalancedTextToSpeechModelTest {
         val node = DefaultModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("test-lb", listOf(state))
-        val balancedModel = LoadBalancedTextToSpeechModel(lb, maxAttempts = 2)
+        val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
             .expectNext(response)
@@ -126,7 +126,7 @@ class LoadBalancedTextToSpeechModelTest {
         val node = DefaultModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("test-lb", listOf(state))
-        val balancedModel = LoadBalancedTextToSpeechModel(lb, maxAttempts = 1)
+        val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
             .expectError(AllNodesUnavailableError::class.java)
@@ -147,7 +147,7 @@ class LoadBalancedTextToSpeechModelTest {
         val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
         val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
         val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
-        val balancedModel = LoadBalancedTextToSpeechModel(lb, maxAttempts = 2)
+        val balancedModel = LoadBalancedTextToSpeechModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<TextToSpeechPrompt>()))
             .expectNext(response)

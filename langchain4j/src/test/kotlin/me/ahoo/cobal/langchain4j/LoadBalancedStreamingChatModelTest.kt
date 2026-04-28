@@ -107,15 +107,18 @@ class LoadBalancedStreamingChatModelTest {
 
     @Test
     fun `chat should notify delegate with AllNodesUnavailableError when all retries exhausted`() {
-        val model = mockk<StreamingChatModel>()
+        val model1 = mockk<StreamingChatModel>()
+        val model2 = mockk<StreamingChatModel>()
         val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
         val handlerSlot = mutableListOf<StreamingChatResponseHandler>()
 
-        every { model.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
+        every { model1.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
+        every { model2.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
 
-        val state = DefaultNodeState(DefaultModelNode("node-1", model = model))
-        val lb = RoundRobinLoadBalancer("test-lb", listOf(state))
-        val balancedModel = LoadBalancedStreamingChatModel(lb, maxAttempts = 2)
+        val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
+        val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
+        val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
 
         val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
         balancedModel.chat(request, delegate)

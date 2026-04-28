@@ -93,7 +93,7 @@ class LoadBalancedChatModelTest {
         val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1))
         val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
         val lb = RandomLoadBalancer("test-lb", listOf(state1, state2))
-        val balancedModel = LoadBalancedChatModel(lb, maxAttempts = 2)
+        val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
             .expectNext(response)
@@ -110,7 +110,7 @@ class LoadBalancedChatModelTest {
         val node = DefaultModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("test-lb", listOf(state))
-        val balancedModel = LoadBalancedChatModel(lb, maxAttempts = 2)
+        val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
             .expectNext(response)
@@ -126,7 +126,7 @@ class LoadBalancedChatModelTest {
         val node = DefaultModelNode("node-1", model = model)
         val state = DefaultNodeState(node)
         val lb = RandomLoadBalancer("test-lb", listOf(state))
-        val balancedModel = LoadBalancedChatModel(lb, maxAttempts = 1)
+        val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
             .expectError(AllNodesUnavailableError::class.java)
@@ -147,7 +147,7 @@ class LoadBalancedChatModelTest {
         val state1 = DefaultNodeState(DefaultModelNode("node-1", model = model1), cb1)
         val state2 = DefaultNodeState(DefaultModelNode("node-2", model = model2))
         val lb = RoundRobinLoadBalancer("test-lb", listOf(state1, state2))
-        val balancedModel = LoadBalancedChatModel(lb, maxAttempts = 2)
+        val balancedModel = LoadBalancedChatModel(lb)
 
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
             .expectNext(response)

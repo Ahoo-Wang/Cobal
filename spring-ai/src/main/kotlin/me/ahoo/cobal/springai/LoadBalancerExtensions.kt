@@ -42,9 +42,10 @@ private class StreamExecuteHelper<NODE : ModelNode<MODEL>, MODEL, R : Any>(
     private val nodeErrorConverter: NodeErrorConverter,
     private val block: (MODEL) -> Flux<R>,
 ) {
+    @Suppress("ReturnCount")
     fun execute(remainingRetries: Int): Flux<R> {
         if (remainingRetries <= 0) {
-            throw AllNodesUnavailableError(loadBalancer.id)
+            return Flux.error(AllNodesUnavailableError(loadBalancer.id))
         }
 
         val candidate = loadBalancer.choose()

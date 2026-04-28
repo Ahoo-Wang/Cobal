@@ -75,11 +75,9 @@ class AbstractLoadBalancerTest {
     }
 
     @Test
-    fun `choose should throw AllNodesUnavailableError when states empty`() {
-        val lb = FixedLoadBalancer("test-lb", emptyList())
-
-        assertThrownBy<AllNodesUnavailableError> {
-            lb.choose()
+    fun `constructor should throw IllegalStateException when states empty`() {
+        assertThrownBy<IllegalStateException> {
+            FixedLoadBalancer("test-lb", emptyList())
         }
     }
 

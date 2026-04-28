@@ -15,7 +15,7 @@ private typealias AlgorithmFactory<MODEL> =
     (LoadBalancerId, List<NodeState<ModelNode<MODEL>>>) -> LoadBalancer<ModelNode<MODEL>>
 
 @CobalDsl
-class LoadBalancerBuilder<MODEL : Any> internal constructor() {
+class LoadBalancerBuilder<MODEL : Any> {
 
     private var algorithmFactory: AlgorithmFactory<MODEL> = { id, states -> WeightedRoundRobinLoadBalancer(id, states) }
     private val nodeBuilders = mutableListOf<NodeBuilder<MODEL>>()

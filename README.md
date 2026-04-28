@@ -12,6 +12,7 @@ Cobal distributes API requests across multiple LLM endpoints to handle rate limi
 
 ## Features
 
+- **Kotlin DSL**: Fluent, type-safe DSL for building load balancers
 - **Multiple Load Balancing Algorithms**: Random, Round-Robin, Weighted Random (O(1) via Vose's Alias Method), and Smooth Weighted Round-Robin (Nginx-style)
 - **Circuit Breaker Integration**: Built on Resilience4j for fault tolerance with per-endpoint health tracking
 - **Transparent Retries**: Automatic retry with configurable error handling
@@ -24,7 +25,7 @@ Cobal distributes API requests across multiple LLM endpoints to handle rate limi
 ## Modules
 
 ```
-core  ── Framework-agnostic abstractions (Node, LoadBalancer, algorithms)
+core  ── Framework-agnostic abstractions (Node, LoadBalancer, algorithms, DSL)
   │
   ├── langchain4j  ── LangChain4j integration (Chat, Streaming, Embedding, Image, Audio)
   └── spring-ai    ── Spring AI integration (Chat, Embedding, Image, Audio)
@@ -59,36 +60,76 @@ implementation("me.ahoo.cobal:core")
 implementation("me.ahoo.cobal:langchain4j")
 ```
 
-### Basic Usage
+### DSL Usage (Recommended)
 
 ```kotlin
-import me.ahoo.cobal.*
-import me.ahoo.cobal.langchain4j.*
+import me.ahoo.cobal.dsl.loadBalancer
+import me.ahoo.cobal.langchain4j.LoadBalancedChatModel
 
-// Create nodes with models
 val model1 = OpenAiChatModel.builder().apiKey("key1").build()
 val model2 = OpenAiChatModel.builder().apiKey("key2").build()
 
-val node1 = DefaultModelNode("node-1", weight = 5, model = model1)
-val node2 = DefaultModelNode("node-2", weight = 1, model = model2)
+val balancedModel = LoadBalancedChatModel(
+    loadBalancer("my-lb") {
+        weightedRoundRobin()
+        node("node-1", weight = 5) { model(model1) }
+        node("node-2", weight = 1) { model(model2) }
+    }
+)
 
-// Create load balancer
+val response = balancedModel.chat(ChatRequest("Hello!"))
+```
+
+#### Custom Circuit Breaker
+
+```kotlin
+val lb = loadBalancer<ChatModel>("my-lb") {
+    roundRobin()
+    node("node-1") {
+        model(model1)
+        circuitBreaker {
+            failureRateThreshold(50f)
+            slidingWindowSize(10)
+            waitDurationInOpenState(Duration.ofSeconds(30))
+        }
+    }
+    node("node-2") { model(model2) }
+}
+```
+
+#### Algorithm Selection
+
+| DSL Function | Algorithm | Description |
+|---|---|---|
+| `weightedRoundRobin()` (default) | `WeightedRoundRobinLoadBalancer` | Smooth weighted round-robin (Nginx-style) |
+| `roundRobin()` | `RoundRobinLoadBalancer` | Strict round-robin |
+| `random()` | `RandomLoadBalancer` | Uniform random selection |
+| `weightedRandom()` | `WeightedRandomLoadBalancer` | Weighted random with O(1) selection |
+
+### Manual Construction
+
+```kotlin
+import me.ahoo.cobal.*
+import me.ahoo.cobal.algorithm.RoundRobinLoadBalancer
+import me.ahoo.cobal.state.DefaultNodeState
+
+val node1 = DefaultModelNode("node-1", weight = 1, model = model1)
+val node2 = DefaultModelNode("node-2", weight = 3, model = model2)
+
 val lb = RoundRobinLoadBalancer("my-lb", listOf(
-    NodeState(node1, CircuitBreakers.of("node-1")),
-    NodeState(node2, CircuitBreakers.of("node-2"))
+    DefaultNodeState(node1),
+    DefaultNodeState(node2),
 ))
 
-// Use as drop-in replacement
 val balancedModel = LoadBalancedChatModel(lb)
-val response = balancedModel.chat(ChatRequest("Hello!"))
 ```
 
 ### Supported Algorithms
 
 | Algorithm | Description |
 |-----------|-------------|
-| `RandomLoadBalancer` | Uniform random selection |
 | `RoundRobinLoadBalancer` | Strict round-robin |
+| `RandomLoadBalancer` | Uniform random selection |
 | `WeightedRandomLoadBalancer` | Weighted random with O(1) selection |
 | `WeightedRoundRobinLoadBalancer` | Smooth weighted round-robin (Nginx-style) |
 

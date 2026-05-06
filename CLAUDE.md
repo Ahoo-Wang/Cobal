@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Cobal** is a reactive load balancing library for LLM/AI client SDKs, built on Kotlin coroutines and Resilience4j circuit breakers. The primary use case is distributing API requests across multiple LLM endpoints (each potentially with a different API key) to handle rate limiting transparently. Target scenario: SAAS platforms where tenants provide their own API keys and need per-tenant load balancer instances.
 
-- **Group**: `me.ahoo.cobal` | **Version**: `0.0.1` | **JVM**: 17 | **Kotlin**: 2.3.20
+- **Group**: `me.ahoo.cobal` | **Version**: `0.2.0` | **JVM**: 17 | **Kotlin**: 2.3.20
 
 ## Build & Development Commands
 
@@ -50,7 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Module Architecture
 
 ```
-core  (depends on: kotlinx-coroutines-core, resilience4j-circuitbreaker)
+core  (depends on: resilience4j-circuitbreaker, resilience4j-kotlin)
  |
  +-- langchain4j  (depends on: :core, langchain4j core + openai)
  |
@@ -131,3 +131,4 @@ LoadBalancedModel.method(request)
 - **Mocking**: MockK for framework model interfaces in integration tests
 - **Test retry**: In CI (`CI` env var), retries up to 2 times with 20 max failures
 - **Test logging**: `-Dlogback.configurationFile=${rootDir}/config/logback.xml`
+- **Compiler flags**: `-Xjsr305=strict` (strict null-safety), `-Xjvm-default=all-compatibility` (default interface methods)

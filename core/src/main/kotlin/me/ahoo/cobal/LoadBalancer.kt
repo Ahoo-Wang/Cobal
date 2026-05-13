@@ -1,6 +1,7 @@
 package me.ahoo.cobal
 
 import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.NodeError
 import me.ahoo.cobal.error.NodeErrorConverter
 import me.ahoo.cobal.error.throwIfInvalidRequest
 import me.ahoo.cobal.state.NodeState
@@ -35,31 +36,46 @@ interface LoadBalancer<NODE : Node> {
 /**
  * Executes [block] against a selected node's model with automatic retry on failure.
  *
- * On each attempt: acquires circuit breaker permission via [NodeState.tryAcquirePermission],
+ * On each iteration: acquires circuit breaker permission via [NodeState.tryAcquirePermission],
  * calls [block], records success/failure with timing.
- * Skips nodes whose circuit breaker denies permission.
- * [InvalidRequestError] is thrown immediately without retry — bad requests won't succeed on another node.
+ *
+ * Permission denials (HALF_OPEN throttle, etc.) do **not** consume an attempt — they are
+ * bounded separately by [Node] count to prevent livelock. Only successful invocations of
+ * [block] count toward [maxAttempts].
+ *
+ * [me.ahoo.cobal.error.InvalidRequestError] is thrown immediately without retry — bad
+ * requests won't succeed on another node.
  *
  * @param NODE the model node type
  * @param MODEL the framework-specific model type
  * @param R the result type
- * @param nodeErrorConverter translates framework exceptions to [me.ahoo.cobal.error.NodeError]
- * @param maxAttempts maximum number of retry attempts, defaults to the number of available nodes
+ * @param nodeErrorConverter translates framework exceptions to [NodeError]
+ * @param maxAttempts maximum number of [block] invocations. `0` (default) auto-sizes to the
+ *   number of available nodes at call entry. Must be `>= 0`.
  * @param block the operation to execute against the selected node's model
- * @throws AllNodesUnavailableError if all attempts are exhausted
- * @throws InvalidRequestError immediately on bad request, without retry
+ * @throws AllNodesUnavailableError if all attempts are exhausted; each [NodeError] from a
+ *   failed attempt is attached via [Throwable.addSuppressed] (with the latest as `cause`)
+ * @throws me.ahoo.cobal.error.InvalidRequestError immediately on bad request, without retry
  */
-@Suppress("TooGenericExceptionCaught")
+@Suppress("TooGenericExceptionCaught", "LoopWithTooManyJumpStatements")
 inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
     nodeErrorConverter: NodeErrorConverter,
-    maxAttempts: Int = availableStates.size,
+    maxAttempts: Int = 0,
     block: (MODEL) -> R,
 ): R {
-    repeat(maxAttempts) {
+    require(maxAttempts >= 0) { "maxAttempts must be >= 0" }
+    val effectiveMax = if (maxAttempts > 0) maxAttempts else availableStates.size.coerceAtLeast(1)
+    val rejectionBudget = states.size
+    val failures = mutableListOf<NodeError>()
+    var attempts = 0
+    var rejections = 0
+    while (attempts < effectiveMax) {
+        if (availableStates.isEmpty()) break
         val candidate = choose()
-        val acquired = candidate.tryAcquirePermission()
-        if (!acquired) {
-            return@repeat
+        if (!candidate.tryAcquirePermission()) {
+            rejections++
+            if (rejections >= rejectionBudget) break
+            continue
         }
         val start = candidate.currentTimestamp
         try {
@@ -71,8 +87,10 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
             val nodeError = nodeErrorConverter.convert(candidate.node.id, e)
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
+            failures.add(nodeError)
             nodeError.throwIfInvalidRequest()
         }
+        attempts++
     }
-    throw AllNodesUnavailableError(id)
+    throw AllNodesUnavailableError(id, failures)
 }

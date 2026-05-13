@@ -32,5 +32,5 @@ class LoadBalancedChatModel(
         loadBalancer.execute(SpringAiNodeErrorConverter) { it.call(prompt) }
 
     override fun stream(prompt: Prompt): Flux<ChatResponse> =
-        loadBalancer.streamExecute(SpringAiNodeErrorConverter, loadBalancer.availableStates.size) { it.stream(prompt) }
+        loadBalancer.streamExecute(SpringAiNodeErrorConverter) { it.stream(prompt) }
 }

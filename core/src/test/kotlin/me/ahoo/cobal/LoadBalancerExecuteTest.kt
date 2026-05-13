@@ -5,12 +5,14 @@ import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NetworkError
+import me.ahoo.cobal.error.NodeError
 import me.ahoo.cobal.error.NodeErrorConverter
 import me.ahoo.cobal.error.RateLimitError
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import kotlin.test.assertFailsWith
 
 @Suppress("TooGenericExceptionThrown")
 class LoadBalancerExecuteTest {
@@ -189,5 +191,90 @@ class LoadBalancerExecuteTest {
         }
 
         callCount.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `execute should auto-size attempts when maxAttempts is zero`() {
+        val lb = loadBalancer<String>("test-lb") {
+            roundRobin()
+            node("node-1") { model("model-1") }
+            node("node-2") { model("model-2") }
+            node("node-3") { model("model-3") }
+        }
+
+        var callCount = 0
+        val converter = NodeErrorConverter { nodeId, _ -> NetworkError(nodeId, null) }
+
+        assertThrownBy<AllNodesUnavailableError> {
+            lb.execute(converter, maxAttempts = 0) { _ ->
+                callCount++
+                throw RuntimeException("fail")
+            }
+        }
+
+        // Auto-sized to availableStates.size (3 nodes)
+        callCount.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `execute should reject negative maxAttempts`() {
+        val lb = loadBalancer<String>("test-lb") {
+            roundRobin()
+            node("node-1") { model("model-1") }
+        }
+
+        assertThrownBy<IllegalArgumentException> {
+            lb.execute(NodeErrorConverter.Default, maxAttempts = -1) { "result" }
+        }
+    }
+
+    @Test
+    fun `execute should attach all node failures as suppressed in AllNodesUnavailableError`() {
+        val lb = loadBalancer<String>("test-lb") {
+            roundRobin()
+            node("node-1") { model("model-1") }
+            node("node-2") { model("model-2") }
+        }
+
+        val converter = NodeErrorConverter { nodeId, _ -> NetworkError(nodeId, null) }
+
+        val error = assertFailsWith<AllNodesUnavailableError> {
+            lb.execute(converter) { _ -> throw RuntimeException("fail") }
+        }
+
+        error.cause.assert().isInstanceOf(NodeError::class.java)
+        // Two attempts → latest is `cause`, the earlier one is suppressed.
+        error.suppressedExceptions.size.assert().isEqualTo(1)
+        error.suppressedExceptions[0].assert().isInstanceOf(NodeError::class.java)
+    }
+
+    @Test
+    fun `execute should fail fast when no nodes available at entry`() {
+        val lb = loadBalancer<String>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model("model-1")
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+        }
+        // Trip the only node so availableStates is empty before execute starts.
+        val cb1 = lb.states[0].circuitBreaker
+        cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
+        lb.availableStates.size.assert().isEqualTo(0)
+
+        var callCount = 0
+        assertThrownBy<AllNodesUnavailableError> {
+            lb.execute(NodeErrorConverter.Default) { _ ->
+                callCount++
+                "result"
+            }
+        }
+
+        callCount.assert().isEqualTo(0)
     }
 }

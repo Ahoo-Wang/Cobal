@@ -31,5 +31,5 @@ class LoadBalancedTextToSpeechModel(
         loadBalancer.execute(SpringAiNodeErrorConverter) { it.call(prompt) }
 
     override fun stream(prompt: TextToSpeechPrompt): Flux<TextToSpeechResponse> =
-        loadBalancer.streamExecute(SpringAiNodeErrorConverter, loadBalancer.availableStates.size) { it.stream(prompt) }
+        loadBalancer.streamExecute(SpringAiNodeErrorConverter) { it.stream(prompt) }
 }

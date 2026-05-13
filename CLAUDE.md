@@ -94,6 +94,10 @@ CobalError (open)
 
 **Algorithms** (`core/.../algorithm/`): `AbstractLoadBalancer` (reactive state caching via `eventPublisher.onStateTransition`), `RandomLoadBalancer`, `RoundRobinLoadBalancer` (AtomicInteger-based), `WeightedRandomLoadBalancer` (Vose's Alias Method), `WeightedRoundRobinLoadBalancer` (Nginx smooth WRR). All throw `AllNodesUnavailableError` when no nodes available.
 
+**DSL** (`core/.../dsl/`): `loadBalancer<MODEL>(id) { ... }` top-level builder function. `LoadBalancerBuilder` selects the algorithm (`roundRobin()`, `random()`, `weightedRoundRobin()`, `weightedRandom()`) — default is `weightedRoundRobin`. `NodeBuilder` requires exactly one `model()` call and optionally overrides `circuitBreaker { }` per node. This is the recommended construction path.
+
+**Default circuit breaker config** (`core/.../state/CircuitBreakers.kt`): LLM-specific tuning — 100% failure rate threshold (prevents transient successes from masking persistent failures), count-based window of 5 calls, 60s open-state wait (aligns with rate-limit reset windows), `InvalidRequestError` ignored by the circuit breaker (400s reflect caller issues, not endpoint health), slow-call detection effectively disabled (LLM tasks are inherently long-running).
+
 ## Integration Module Pattern
 
 Both `langchain4j` and `spring-ai` follow the same symmetric pattern:
@@ -102,8 +106,8 @@ Both `langchain4j` and `spring-ai` follow the same symmetric pattern:
 2. **Model Node Type Aliases** — `typealias ChatModelNode = DefaultModelNode<ChatModel>` etc., defined in each model file.
 3. **Load-Balanced Decorators** — Implement the framework's model interface via Kotlin `by delegate` delegation. Each override is a single call to `loadBalancer.execute(ErrorConverter) { it.method(args) }`.
 4. **Streaming** — Both modules have their own async retry because the shared `execute()` is synchronous:
-   - **LangChain4j**: `LoadBalancedStreamingChatModel` uses callback-based recursive retry with `RetryingHandler`
-   - **Spring AI**: `LoadBalancedChatModel.stream()` uses Flux-based retry with `AtomicBoolean` emission tracking (does not retry after data emitted)
+   - **LangChain4j**: `LoadBalancedStreamingChatModel` drives a `RetryDriver` state machine — synchronous callbacks drain via an outer `while` loop, asynchronous callbacks re-enter the loop once; stack depth is bounded by 1 regardless of node count
+   - **Spring AI**: `LoadBalancedChatModel.stream()` delegates to `streamExecute()` (`springai/LoadBalancerExtensions.kt`) — Flux-based retry with `AtomicBoolean` emission tracking (does not retry after data emitted)
 
 ## Request Flow
 

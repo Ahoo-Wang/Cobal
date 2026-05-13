@@ -210,6 +210,162 @@ class LoadBalancedStreamingChatModelTest {
     }
 
     @Test
+    fun `chat should drive retry loop without recursion when onError is invoked synchronously`() {
+        // Synchronous-callback provider: model.chat(...) invokes handler.onError(...) before returning.
+        // This exercises the `processing=true` branch — retry must drain via the outer while loop,
+        // not via a recursive runLoop() call.
+        val model1 = mockk<StreamingChatModel>()
+        val model2 = mockk<StreamingChatModel>()
+        val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
+        val response = mockk<ChatResponse>()
+        val handler2Slot = slot<StreamingChatResponseHandler>()
+
+        every { model1.chat(any<ChatRequest>(), any()) } answers {
+            secondArg<StreamingChatResponseHandler>().onError(RuntimeException("rate limited"))
+        }
+        every { model2.chat(any<ChatRequest>(), capture(handler2Slot)) } answers { }
+
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
+
+        balancedModel.chat(
+            ChatRequest.builder().messages(UserMessage.from("hello")).build(),
+            delegate,
+        )
+
+        // node-2 was selected synchronously after node-1's onError — assert by completing it.
+        handler2Slot.captured.onCompleteResponse(response)
+        verify { delegate.onCompleteResponse(response) }
+        verify(exactly = 0) { delegate.onError(any()) }
+    }
+
+    @Test
+    fun `chat should retry when model_chat throws retriable exception synchronously`() {
+        // Exercises the synchronous-exception catch block in step() with a retriable failure.
+        val model1 = mockk<StreamingChatModel>()
+        val model2 = mockk<StreamingChatModel>()
+        val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
+        val response = mockk<ChatResponse>()
+        val handler2Slot = slot<StreamingChatResponseHandler>()
+
+        every { model1.chat(any<ChatRequest>(), any()) } throws RuntimeException("transient")
+        every { model2.chat(any<ChatRequest>(), capture(handler2Slot)) } answers { }
+
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
+
+        balancedModel.chat(
+            ChatRequest.builder().messages(UserMessage.from("hello")).build(),
+            delegate,
+        )
+
+        handler2Slot.captured.onCompleteResponse(response)
+        verify { delegate.onCompleteResponse(response) }
+        verify(exactly = 0) { delegate.onError(any()) }
+    }
+
+    @Test
+    fun `chat should terminate immediately when model_chat throws InvalidRequestException synchronously`() {
+        val model1 = mockk<StreamingChatModel>()
+        val model2 = mockk<StreamingChatModel>(relaxed = true)
+        val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
+
+        every {
+            model1.chat(any<ChatRequest>(), any())
+        } throws dev.langchain4j.exception.InvalidRequestException("bad request")
+
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
+
+        balancedModel.chat(
+            ChatRequest.builder().messages(UserMessage.from("hello")).build(),
+            delegate,
+        )
+
+        verify { delegate.onError(match { it is InvalidRequestError }) }
+        // node-2 must not be tried — InvalidRequestError short-circuits.
+        verify(exactly = 0) { model2.chat(any<ChatRequest>(), any()) }
+    }
+
+    @Test
+    fun `chat should fail fast when no nodes are available at entry`() {
+        val model1 = mockk<StreamingChatModel>()
+        val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
+
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+        }
+        // Trip the only node before starting.
+        val cb1 = lb.states[0].circuitBreaker
+        cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
+        lb.availableStates.size.assert().isEqualTo(0)
+
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
+        balancedModel.chat(
+            ChatRequest.builder().messages(UserMessage.from("hello")).build(),
+            delegate,
+        )
+
+        verify { delegate.onError(match { it is AllNodesUnavailableError }) }
+        verify(exactly = 0) { model1.chat(any<ChatRequest>(), any()) }
+    }
+
+    @Test
+    fun `chat should attach per-attempt failures as suppressed in AllNodesUnavailableError`() {
+        val model1 = mockk<StreamingChatModel>()
+        val model2 = mockk<StreamingChatModel>()
+        val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
+
+        every { model1.chat(any<ChatRequest>(), any()) } answers {
+            secondArg<StreamingChatResponseHandler>().onError(RuntimeException("fail 1"))
+        }
+        every { model2.chat(any<ChatRequest>(), any()) } answers {
+            secondArg<StreamingChatResponseHandler>().onError(RuntimeException("fail 2"))
+        }
+
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
+
+        val errorSlot = slot<Throwable>()
+        every { delegate.onError(capture(errorSlot)) } answers { }
+
+        balancedModel.chat(
+            ChatRequest.builder().messages(UserMessage.from("hello")).build(),
+            delegate,
+        )
+
+        errorSlot.captured.assert().isInstanceOf(AllNodesUnavailableError::class.java)
+        // Two attempts: latest is `cause`, earlier one is suppressed.
+        errorSlot.captured.cause.assert().isNotNull()
+        errorSlot.captured.suppressedExceptions.size.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `chat should use current available states size for default maxAttempts`() {
         val model1 = mockk<StreamingChatModel>()
         val model2 = mockk<StreamingChatModel>()

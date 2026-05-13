@@ -128,6 +128,97 @@ class LoadBalancedChatModelTest {
     }
 
     @Test
+    fun `streamExecute should defer node selection until subscription`() {
+        // Verifies the cold-Flux fix: choose()/availableStates evaluation must happen at
+        // subscription time, not when stream(prompt) is called.
+        val model1 = mockk<ChatModel>()
+        val model2 = mockk<ChatModel>(relaxed = true)
+        val response = mockk<ChatResponse>()
+        every { model2.stream(any<Prompt>()) } returns Flux.just(response)
+
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model1)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedChatModel(lb)
+
+        // Build the cold Flux while both nodes are available.
+        val cold = balancedModel.stream(mockk<Prompt>())
+
+        // Trip node-1 AFTER constructing the Flux but BEFORE subscribing.
+        val cb1 = lb.states[0].circuitBreaker
+        cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
+        lb.availableStates.size.assert().isEqualTo(1)
+
+        // Subscription should observe the updated topology — only node-2 should be selected.
+        StepVerifier.create(cold)
+            .expectNext(response)
+            .verifyComplete()
+
+        verify(exactly = 0) { model1.stream(any<Prompt>()) }
+    }
+
+    @Test
+    fun `streamExecute AllNodesUnavailableError should carry per-attempt failures as suppressed`() {
+        val model1 = mockk<ChatModel>()
+        val model2 = mockk<ChatModel>()
+        every { model1.stream(any<Prompt>()) } returns Flux.error(RuntimeException("fail 1"))
+        every { model2.stream(any<Prompt>()) } returns Flux.error(RuntimeException("fail 2"))
+
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedChatModel(lb)
+
+        StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
+            .expectErrorMatches { error ->
+                error is AllNodesUnavailableError &&
+                    error.cause != null &&
+                    error.suppressedExceptions.size == 1
+            }
+            .verify()
+    }
+
+    @Test
+    fun `streamExecute should fail fast when no nodes available at subscription`() {
+        val model = mockk<ChatModel>()
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+        }
+        // Trip the only node.
+        val cb1 = lb.states[0].circuitBreaker
+        cb1.onError(0, cb1.timestampUnit, RuntimeException("error"))
+
+        val balancedModel = LoadBalancedChatModel(lb)
+
+        StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
+            .expectError(AllNodesUnavailableError::class.java)
+            .verify()
+
+        verify(exactly = 0) { model.stream(any<Prompt>()) }
+    }
+
+    @Test
     fun `stream should skip node when circuit breaker denies permission`() {
         val model1 = mockk<ChatModel>()
         val model2 = mockk<ChatModel>()

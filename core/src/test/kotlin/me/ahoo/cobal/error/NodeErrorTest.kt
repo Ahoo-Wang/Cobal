@@ -101,6 +101,22 @@ class NodeErrorTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
+    fun `isNonRetriable should delegate to shortCircuitsRetry`() {
+        AuthenticationError("node-1", null).isNonRetriable.assert().isTrue()
+        RateLimitError("node-1", null).isNonRetriable.assert().isFalse()
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `throwIfNonRetriable should throw for authentication error`() {
+        val error = AuthenticationError("node-1", null)
+        assertThrownBy<AuthenticationError> {
+            error.throwIfNonRetriable()
+        }
+    }
+
+    @Test
     fun `AuthenticationError should have correct message format`() {
         val error = AuthenticationError("node-1", null)
         error.message.assert().isEqualTo("Auth failed [node-1]")

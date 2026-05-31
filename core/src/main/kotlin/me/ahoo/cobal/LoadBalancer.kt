@@ -3,8 +3,7 @@ package me.ahoo.cobal
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.NodeError
 import me.ahoo.cobal.error.NodeErrorConverter
-import me.ahoo.cobal.error.isNonRetriable
-import me.ahoo.cobal.error.throwIfNonRetriable
+import me.ahoo.cobal.error.shortCircuitsRetry
 import me.ahoo.cobal.state.NodeState
 
 /** Unique identifier for a [LoadBalancer] instance. */
@@ -89,12 +88,10 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
             val nodeError = try {
                 nodeErrorConverter.convert(candidate.node.id, e)
             } catch (converterError: Exception) {
-                candidate.releasePermission()
-                throw converterError
+                releasePermissionAndThrow(candidate, converterError)
             }
-            if (nodeError.isNonRetriable) {
-                candidate.releasePermission()
-                nodeError.throwIfNonRetriable()
+            if (nodeError.shortCircuitsRetry) {
+                releasePermissionAndThrow(candidate, nodeError)
             }
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
@@ -103,4 +100,10 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
         attempts++
     }
     throw AllNodesUnavailableError(id, failures)
+}
+
+@PublishedApi
+internal fun releasePermissionAndThrow(candidate: NodeState<*>, error: Throwable): Nothing {
+    candidate.releasePermission()
+    throw error
 }

@@ -5,7 +5,7 @@ import me.ahoo.cobal.ModelNode
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.NodeError
 import me.ahoo.cobal.error.NodeErrorConverter
-import me.ahoo.cobal.error.isNonRetriable
+import me.ahoo.cobal.error.shortCircuitsRetry
 import me.ahoo.cobal.state.NodeState
 import reactor.core.publisher.Flux
 import java.util.concurrent.atomic.AtomicBoolean
@@ -53,7 +53,7 @@ private class StreamExecuteHelper<NODE : ModelNode<MODEL>, MODEL, R : Any>(
     private val nodeErrorConverter: NodeErrorConverter,
     private val block: (MODEL) -> Flux<R>,
 ) {
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "TooGenericExceptionCaught")
     fun execute(remainingAttempts: Int, rejectionBudget: Int, failures: MutableList<NodeError>): Flux<R> {
         if (remainingAttempts <= 0 || loadBalancer.availableStates.isEmpty()) {
             return Flux.error(AllNodesUnavailableError(loadBalancer.id, failures))
@@ -74,7 +74,13 @@ private class StreamExecuteHelper<NODE : ModelNode<MODEL>, MODEL, R : Any>(
         val start = candidate.currentTimestamp
         val emitted = AtomicBoolean(false)
 
-        return block(candidate.node.model)
+        val source = try {
+            block(candidate.node.model)
+        } catch (error: Exception) {
+            return handleFailure(candidate, start, error, remainingAttempts, rejectionBudget, failures)
+        }
+
+        return source
             .doOnNext { emitted.set(true) }
             .doOnComplete {
                 val duration = candidate.currentTimestamp - start
@@ -84,16 +90,33 @@ private class StreamExecuteHelper<NODE : ModelNode<MODEL>, MODEL, R : Any>(
                 if (emitted.get()) {
                     Flux.error(error)
                 } else {
-                    val nodeError = nodeErrorConverter.convert(candidate.node.id, error)
-                    if (nodeError.isNonRetriable) {
-                        candidate.releasePermission()
-                        return@onErrorResume Flux.error(nodeError)
-                    }
-                    val duration = candidate.currentTimestamp - start
-                    candidate.onError(duration, candidate.timestampUnit, nodeError)
-                    failures.add(nodeError)
-                    execute(remainingAttempts - 1, rejectionBudget, failures)
+                    handleFailure(candidate, start, error, remainingAttempts, rejectionBudget, failures)
                 }
             }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun handleFailure(
+        candidate: NodeState<NODE>,
+        start: Long,
+        error: Throwable,
+        remainingAttempts: Int,
+        rejectionBudget: Int,
+        failures: MutableList<NodeError>,
+    ): Flux<R> {
+        val nodeError = try {
+            nodeErrorConverter.convert(candidate.node.id, error)
+        } catch (converterError: Exception) {
+            candidate.releasePermission()
+            return Flux.error(converterError)
+        }
+        if (nodeError.shortCircuitsRetry) {
+            candidate.releasePermission()
+            return Flux.error(nodeError)
+        }
+        val duration = candidate.currentTimestamp - start
+        candidate.onError(duration, candidate.timestampUnit, nodeError)
+        failures.add(nodeError)
+        return execute(remainingAttempts - 1, rejectionBudget, failures)
     }
 }

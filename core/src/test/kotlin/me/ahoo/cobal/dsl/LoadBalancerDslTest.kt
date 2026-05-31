@@ -8,6 +8,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import kotlin.test.assertFailsWith
 
 private data class TestModel(val name: String)
 
@@ -117,12 +118,13 @@ class LoadBalancerDslTest {
 
     @Test
     fun `calling model zero times should throw IllegalStateException`() {
-        assertThrownBy<IllegalStateException> {
+        val error = assertFailsWith<IllegalStateException> {
             loadBalancer<TestModel>("bad") {
                 roundRobin()
                 node("n1") { }
             }
         }
+        error.message.assert().isEqualTo("model() must be called for node 'n1'.")
     }
 
     @Test

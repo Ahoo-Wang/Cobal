@@ -23,7 +23,7 @@ class NodeBuilder<MODEL : Any>(
 
     fun build(): Pair<DefaultModelNode<MODEL>, CircuitBreakerConfig> {
         val model = checkNotNull(model) {
-            "model() must be called exactly once for node '$id'."
+            "model() must be called for node '$id'."
         }
         return DefaultModelNode(id, weight, model) to circuitBreakerConfig
     }

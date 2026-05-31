@@ -86,7 +86,12 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
             candidate.onResult(duration, candidate.timestampUnit, result)
             return result
         } catch (e: Exception) {
-            val nodeError = nodeErrorConverter.convert(candidate.node.id, e)
+            val nodeError = try {
+                nodeErrorConverter.convert(candidate.node.id, e)
+            } catch (converterError: Exception) {
+                candidate.releasePermission()
+                throw converterError
+            }
             if (nodeError.isNonRetriable) {
                 candidate.releasePermission()
                 nodeError.throwIfNonRetriable()

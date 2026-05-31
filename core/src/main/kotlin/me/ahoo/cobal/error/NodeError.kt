@@ -40,15 +40,20 @@ class InvalidRequestError(nodeId: NodeId, cause: Throwable?) :
 val NodeError.isInvalidRequest: Boolean
     get() = this is InvalidRequestError
 
-val NodeError.isNonRetriable: Boolean
+/** `true` when retrying another node cannot reasonably fix this failure. */
+val NodeError.shortCircuitsRetry: Boolean
     get() = this is InvalidRequestError || this is AuthenticationError
+
+@Deprecated("Use shortCircuitsRetry.", ReplaceWith("shortCircuitsRetry"))
+val NodeError.isNonRetriable: Boolean
+    get() = shortCircuitsRetry
 
 /** Throws immediately if this is an [InvalidRequestError] — bad requests won't succeed on another node. */
 fun NodeError.throwIfInvalidRequest() {
     if (isInvalidRequest) throw this
 }
 
-/** Throws immediately for explicit non-retriable errors. */
+@Deprecated("Use shortCircuitsRetry and throw the error directly.")
 fun NodeError.throwIfNonRetriable() {
-    if (isNonRetriable) throw this
+    if (shortCircuitsRetry) throw this
 }

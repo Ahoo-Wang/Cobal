@@ -87,12 +87,28 @@ class NodeErrorTest {
     }
 
     @Test
-    fun `isNonRetriable should return true for invalid request and authentication errors`() {
-        InvalidRequestError("node-1", null).isNonRetriable.assert().isTrue()
-        AuthenticationError("node-1", null).isNonRetriable.assert().isTrue()
+    fun `shortCircuitsRetry should return true for invalid request and authentication errors`() {
+        InvalidRequestError("node-1", null).shortCircuitsRetry.assert().isTrue()
+        AuthenticationError("node-1", null).shortCircuitsRetry.assert().isTrue()
     }
 
     @Test
+    fun `shortCircuitsRetry should return false for retriable errors`() {
+        RateLimitError("node-1", null).shortCircuitsRetry.assert().isFalse()
+        ServerError("node-1", null).shortCircuitsRetry.assert().isFalse()
+        TimeoutError("node-1", null).shortCircuitsRetry.assert().isFalse()
+        NetworkError("node-1", null).shortCircuitsRetry.assert().isFalse()
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `isNonRetriable should delegate to shortCircuitsRetry`() {
+        AuthenticationError("node-1", null).isNonRetriable.assert().isTrue()
+        RateLimitError("node-1", null).isNonRetriable.assert().isFalse()
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
     fun `throwIfNonRetriable should throw for authentication error`() {
         val error = AuthenticationError("node-1", null)
         assertThrownBy<AuthenticationError> {

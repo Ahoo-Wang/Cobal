@@ -7,6 +7,7 @@ import io.mockk.verify
 import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.AuthenticationError
+import me.ahoo.cobal.error.NodeErrorConverter
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -113,6 +114,73 @@ class LoadBalancedChatModelTest {
         verify(exactly = 0) { model2.stream(any<Prompt>()) }
         lb.states[0].circuitBreaker.metrics.numberOfFailedCalls.assert().isEqualTo(0)
         lb.states[0].circuitBreaker.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)
+    }
+
+    @Test
+    fun `streamExecute should release permission when converter throws`() {
+        val model = mockk<ChatModel>()
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    permittedNumberOfCallsInHalfOpenState(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+        }
+        val cb = lb.states[0].circuitBreaker
+        cb.transitionToOpenState()
+        cb.transitionToHalfOpenState()
+
+        StepVerifier.create(
+            lb.streamExecute(
+                nodeErrorConverter = NodeErrorConverter { _, _ -> error("converter failed") },
+            ) {
+                Flux.error(RuntimeException("raw failure"))
+            }
+        )
+            .expectError(IllegalStateException::class.java)
+            .verify()
+
+        cb.tryAcquirePermission().assert().isTrue()
+        cb.releasePermission()
+    }
+
+    @Test
+    fun `streamExecute should convert error when block throws before returning flux`() {
+        val model = mockk<ChatModel>()
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model(model)
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    permittedNumberOfCallsInHalfOpenState(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+        }
+        val cb = lb.states[0].circuitBreaker
+        cb.transitionToOpenState()
+        cb.transitionToHalfOpenState()
+
+        val stream: Flux<ChatResponse> = lb.streamExecute(SpringAiNodeErrorConverter) {
+            @Suppress("TooGenericExceptionThrown")
+            throw RuntimeException("stream failed before flux")
+        }
+
+        StepVerifier.create(stream)
+            .expectError(AllNodesUnavailableError::class.java)
+            .verify()
+
+        cb.state.assert().isEqualTo(CircuitBreaker.State.OPEN)
+        cb.metrics.numberOfFailedCalls.assert().isEqualTo(1)
     }
 
     @Test

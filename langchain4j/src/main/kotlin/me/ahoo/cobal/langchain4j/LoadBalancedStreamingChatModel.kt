@@ -8,7 +8,7 @@ import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.NodeError
-import me.ahoo.cobal.error.isNonRetriable
+import me.ahoo.cobal.error.shortCircuitsRetry
 import me.ahoo.cobal.state.NodeState
 
 /** Node type for [StreamingChatModel] endpoints. */
@@ -126,7 +126,7 @@ class LoadBalancedStreamingChatModel(
             error: Throwable,
         ): Boolean {
             val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, error)
-            if (nodeError.isNonRetriable) {
+            if (nodeError.shortCircuitsRetry) {
                 candidate.releasePermission()
                 terminated = true
                 handler.onError(nodeError)
@@ -157,7 +157,7 @@ class LoadBalancedStreamingChatModel(
 
             override fun onError(error: Throwable) {
                 val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, error)
-                if (nodeError.isNonRetriable) {
+                if (nodeError.shortCircuitsRetry) {
                     candidate.releasePermission()
                     terminated = true
                     handler.onError(nodeError)

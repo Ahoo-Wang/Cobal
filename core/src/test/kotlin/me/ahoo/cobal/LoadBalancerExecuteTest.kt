@@ -112,6 +112,37 @@ class LoadBalancerExecuteTest {
     }
 
     @Test
+    fun `execute should release permission when converter throws`() {
+        val lb = loadBalancer<String>("test-lb") {
+            roundRobin()
+            node("node-1") {
+                model("model-1")
+                circuitBreaker {
+                    failureRateThreshold(100.0f)
+                    slidingWindowSize(1)
+                    minimumNumberOfCalls(1)
+                    permittedNumberOfCallsInHalfOpenState(1)
+                    waitDurationInOpenState(Duration.ofSeconds(60))
+                }
+            }
+        }
+        val cb = lb.states[0].circuitBreaker
+        cb.transitionToOpenState()
+        cb.transitionToHalfOpenState()
+
+        assertThrownBy<IllegalStateException> {
+            lb.execute(
+                nodeErrorConverter = NodeErrorConverter { _, _ -> error("converter failed") },
+            ) {
+                throw RuntimeException("raw failure")
+            }
+        }
+
+        cb.tryAcquirePermission().assert().isTrue()
+        cb.releasePermission()
+    }
+
+    @Test
     fun `execute should throw AllNodesUnavailableError when all retries exhausted`() {
         val lb = loadBalancer<String>("test-lb") {
             roundRobin()

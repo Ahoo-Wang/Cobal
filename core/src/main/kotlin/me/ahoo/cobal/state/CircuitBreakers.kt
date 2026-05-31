@@ -5,6 +5,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType
 import io.github.resilience4j.kotlin.circuitbreaker.CircuitBreakerConfig
 import me.ahoo.cobal.NodeId
+import me.ahoo.cobal.error.AuthenticationError
 import me.ahoo.cobal.error.InvalidRequestError
 import java.time.Duration
 
@@ -14,7 +15,8 @@ import java.time.Duration
  * - 100% failure rate threshold: prevents transient successes from masking persistent failures.
  * - Count-based sliding window of 5: opens after 5 consecutive failures.
  * - 60s open-state wait: aligns with typical rate-limit reset windows.
- * - [InvalidRequestError] ignored: 400 errors reflect caller issues, not endpoint health.
+ * - [InvalidRequestError]/[AuthenticationError] ignored: caller/request credential issues,
+ *   not endpoint health.
  * - Slow-call detection explicitly disabled (`slowCallRateThreshold = 100%`, threshold = 15min):
  *   LLM tasks are inherently long-running; call duration does not indicate endpoint health.
  */
@@ -26,7 +28,7 @@ val DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = CircuitBreakerConfig 
         .waitDurationInOpenState(Duration.ofSeconds(60))
         .permittedNumberOfCallsInHalfOpenState(1)
         .automaticTransitionFromOpenToHalfOpenEnabled(true)
-        .ignoreExceptions(InvalidRequestError::class.java)
+        .ignoreExceptions(InvalidRequestError::class.java, AuthenticationError::class.java)
         .slowCallRateThreshold(100f)
         .slowCallDurationThreshold(Duration.ofMinutes(15))
 }

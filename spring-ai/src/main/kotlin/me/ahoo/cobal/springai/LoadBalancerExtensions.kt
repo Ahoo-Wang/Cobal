@@ -3,9 +3,9 @@ package me.ahoo.cobal.springai
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.ModelNode
 import me.ahoo.cobal.error.AllNodesUnavailableError
-import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NodeError
 import me.ahoo.cobal.error.NodeErrorConverter
+import me.ahoo.cobal.error.isNonRetriable
 import me.ahoo.cobal.state.NodeState
 import reactor.core.publisher.Flux
 import java.util.concurrent.atomic.AtomicBoolean
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * On each attempt: acquires circuit breaker permission via [NodeState.tryAcquirePermission],
  * creates a Flux via [block], records success/failure with timing.
  * Permission denials do **not** consume an attempt; they are bounded separately by node count.
- * [InvalidRequestError] is thrown immediately without retry.
+ * Explicit non-retriable errors are thrown immediately without retry.
  *
  * @param NODE the model node type
  * @param MODEL the framework-specific model type
@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @param block the streaming operation to execute against the selected node's model
  * @throws AllNodesUnavailableError if all attempts are exhausted before any emission; per-attempt
  *   [NodeError]s are attached via [Throwable.addSuppressed].
- * @throws InvalidRequestError immediately on bad request, without retry
+ * @throws NodeError immediately for explicit non-retriable errors, without retry
  */
 fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.streamExecute(
     nodeErrorConverter: NodeErrorConverter,
@@ -85,14 +85,14 @@ private class StreamExecuteHelper<NODE : ModelNode<MODEL>, MODEL, R : Any>(
                     Flux.error(error)
                 } else {
                     val nodeError = nodeErrorConverter.convert(candidate.node.id, error)
+                    if (nodeError.isNonRetriable) {
+                        candidate.releasePermission()
+                        return@onErrorResume Flux.error(nodeError)
+                    }
                     val duration = candidate.currentTimestamp - start
                     candidate.onError(duration, candidate.timestampUnit, nodeError)
                     failures.add(nodeError)
-                    if (nodeError is InvalidRequestError) {
-                        Flux.error(nodeError)
-                    } else {
-                        execute(remainingAttempts - 1, rejectionBudget, failures)
-                    }
+                    execute(remainingAttempts - 1, rejectionBudget, failures)
                 }
             }
     }

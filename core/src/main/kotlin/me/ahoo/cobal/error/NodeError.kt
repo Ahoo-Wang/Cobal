@@ -40,7 +40,15 @@ class InvalidRequestError(nodeId: NodeId, cause: Throwable?) :
 val NodeError.isInvalidRequest: Boolean
     get() = this is InvalidRequestError
 
+val NodeError.isNonRetriable: Boolean
+    get() = this is InvalidRequestError || this is AuthenticationError
+
 /** Throws immediately if this is an [InvalidRequestError] — bad requests won't succeed on another node. */
 fun NodeError.throwIfInvalidRequest() {
     if (isInvalidRequest) throw this
+}
+
+/** Throws immediately for explicit non-retriable errors. */
+fun NodeError.throwIfNonRetriable() {
+    if (isNonRetriable) throw this
 }

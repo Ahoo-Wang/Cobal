@@ -3,6 +3,7 @@ package me.ahoo.cobal
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.AuthenticationError
 import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NetworkError
 import me.ahoo.cobal.error.NodeError
@@ -83,6 +84,31 @@ class LoadBalancerExecuteTest {
         }
 
         callCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `execute should throw AuthenticationError immediately without retry`() {
+        val lb = loadBalancer<String>("test-lb") {
+            roundRobin()
+            node("node-1") { model("model-1") }
+            node("node-2") { model("model-2") }
+        }
+
+        var callCount = 0
+        val converter = NodeErrorConverter { nodeId, _ ->
+            AuthenticationError(nodeId, null)
+        }
+
+        assertThrownBy<AuthenticationError> {
+            lb.execute(converter) { _ ->
+                callCount++
+                throw RuntimeException("auth failed")
+            }
+        }
+
+        callCount.assert().isEqualTo(1)
+        lb.states[0].circuitBreaker.metrics.numberOfFailedCalls.assert().isEqualTo(0)
+        lb.states[0].circuitBreaker.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)
     }
 
     @Test

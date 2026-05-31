@@ -3,7 +3,8 @@ package me.ahoo.cobal
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.NodeError
 import me.ahoo.cobal.error.NodeErrorConverter
-import me.ahoo.cobal.error.throwIfInvalidRequest
+import me.ahoo.cobal.error.isNonRetriable
+import me.ahoo.cobal.error.throwIfNonRetriable
 import me.ahoo.cobal.state.NodeState
 
 /** Unique identifier for a [LoadBalancer] instance. */
@@ -43,8 +44,8 @@ interface LoadBalancer<NODE : Node> {
  * bounded separately by [Node] count to prevent livelock. Only successful invocations of
  * [block] count toward [maxAttempts].
  *
- * [me.ahoo.cobal.error.InvalidRequestError] is thrown immediately without retry — bad
- * requests won't succeed on another node.
+ * Explicit non-retriable errors are thrown immediately without retry — bad requests
+ * or authentication failures won't succeed on another node.
  *
  * @param NODE the model node type
  * @param MODEL the framework-specific model type
@@ -55,7 +56,8 @@ interface LoadBalancer<NODE : Node> {
  * @param block the operation to execute against the selected node's model
  * @throws AllNodesUnavailableError if all attempts are exhausted; each [NodeError] from a
  *   failed attempt is attached via [Throwable.addSuppressed] (with the latest as `cause`)
- * @throws me.ahoo.cobal.error.InvalidRequestError immediately on bad request, without retry
+ * @throws me.ahoo.cobal.error.NodeError immediately for explicit non-retriable errors,
+ *   without retry
  */
 @Suppress("TooGenericExceptionCaught", "LoopWithTooManyJumpStatements")
 inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
@@ -85,10 +87,13 @@ inline fun <NODE : ModelNode<MODEL>, MODEL, R : Any> LoadBalancer<NODE>.execute(
             return result
         } catch (e: Exception) {
             val nodeError = nodeErrorConverter.convert(candidate.node.id, e)
+            if (nodeError.isNonRetriable) {
+                candidate.releasePermission()
+                nodeError.throwIfNonRetriable()
+            }
             val duration = candidate.currentTimestamp - start
             candidate.onError(duration, candidate.timestampUnit, nodeError)
             failures.add(nodeError)
-            nodeError.throwIfInvalidRequest()
         }
         attempts++
     }

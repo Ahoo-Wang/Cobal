@@ -87,6 +87,20 @@ class NodeErrorTest {
     }
 
     @Test
+    fun `isNonRetriable should return true for invalid request and authentication errors`() {
+        InvalidRequestError("node-1", null).isNonRetriable.assert().isTrue()
+        AuthenticationError("node-1", null).isNonRetriable.assert().isTrue()
+    }
+
+    @Test
+    fun `throwIfNonRetriable should throw for authentication error`() {
+        val error = AuthenticationError("node-1", null)
+        assertThrownBy<AuthenticationError> {
+            error.throwIfNonRetriable()
+        }
+    }
+
+    @Test
     fun `AuthenticationError should have correct message format`() {
         val error = AuthenticationError("node-1", null)
         error.message.assert().isEqualTo("Auth failed [node-1]")

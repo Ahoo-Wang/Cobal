@@ -8,7 +8,7 @@ import me.ahoo.cobal.DefaultModelNode
 import me.ahoo.cobal.LoadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
 import me.ahoo.cobal.error.NodeError
-import me.ahoo.cobal.error.isInvalidRequest
+import me.ahoo.cobal.error.isNonRetriable
 import me.ahoo.cobal.state.NodeState
 
 /** Node type for [StreamingChatModel] endpoints. */
@@ -25,9 +25,9 @@ typealias StreamingChatModelNode = DefaultModelNode<StreamingChatModel>
  * asynchronous callbacks re-enter the loop once. Stack depth is bounded by 1 regardless of how
  * many nodes are retried.
  *
- * [me.ahoo.cobal.error.InvalidRequestError] short-circuits immediately — bad requests won't
- * succeed on another node. When every retry is exhausted, the delegate handler receives a single
- * [AllNodesUnavailableError] with all per-attempt failures attached as suppressed exceptions.
+ * Explicit non-retriable errors short-circuit immediately. When every retry is exhausted, the
+ * delegate handler receives a single [AllNodesUnavailableError] with all per-attempt failures
+ * attached as suppressed exceptions.
  */
 class LoadBalancedStreamingChatModel(
     private val loadBalancer: LoadBalancer<StreamingChatModelNode>,
@@ -126,14 +126,15 @@ class LoadBalancedStreamingChatModel(
             error: Throwable,
         ): Boolean {
             val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, error)
-            val duration = candidate.currentTimestamp - start
-            candidate.onError(duration, candidate.timestampUnit, nodeError)
-            failures.add(nodeError)
-            if (nodeError.isInvalidRequest) {
+            if (nodeError.isNonRetriable) {
+                candidate.releasePermission()
                 terminated = true
                 handler.onError(nodeError)
                 return true
             }
+            val duration = candidate.currentTimestamp - start
+            candidate.onError(duration, candidate.timestampUnit, nodeError)
+            failures.add(nodeError)
             return false
         }
 
@@ -156,14 +157,15 @@ class LoadBalancedStreamingChatModel(
 
             override fun onError(error: Throwable) {
                 val nodeError = LangChain4JNodeErrorConverter.convert(candidate.node.id, error)
-                val duration = candidate.currentTimestamp - start
-                candidate.onError(duration, candidate.timestampUnit, nodeError)
-                failures.add(nodeError)
-                if (nodeError.isInvalidRequest) {
+                if (nodeError.isNonRetriable) {
+                    candidate.releasePermission()
                     terminated = true
                     handler.onError(nodeError)
                     return
                 }
+                val duration = candidate.currentTimestamp - start
+                candidate.onError(duration, candidate.timestampUnit, nodeError)
+                failures.add(nodeError)
                 if (processing) {
                     // Synchronous callback inside model.chat(...); let runLoop pick this up.
                     pendingRetry = true

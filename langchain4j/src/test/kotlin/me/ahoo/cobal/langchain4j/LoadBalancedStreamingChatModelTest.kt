@@ -12,6 +12,7 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.AuthenticationError
 import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
@@ -102,6 +103,33 @@ class LoadBalancedStreamingChatModelTest {
         handlerSlot.captured.onError(dev.langchain4j.exception.InvalidRequestException("bad request"))
 
         verify { delegate.onError(match { it is InvalidRequestError }) }
+    }
+
+    @Test
+    fun `chat should propagate AuthenticationError immediately without retry`() {
+        val model1 = mockk<StreamingChatModel>()
+        val model2 = mockk<StreamingChatModel>(relaxed = true)
+        val delegate = mockk<StreamingChatResponseHandler>(relaxed = true)
+        val handlerSlot = slot<StreamingChatResponseHandler>()
+
+        every { model1.chat(any<ChatRequest>(), capture(handlerSlot)) } answers { }
+
+        val lb = loadBalancer<StreamingChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedStreamingChatModel(lb)
+
+        val request = ChatRequest.builder().messages(UserMessage.from("hello")).build()
+        balancedModel.chat(request, delegate)
+
+        handlerSlot.captured.onError(dev.langchain4j.exception.AuthenticationException("auth failed"))
+
+        verify { delegate.onError(match { it is AuthenticationError }) }
+        verify(exactly = 0) { model2.chat(any<ChatRequest>(), any()) }
+        lb.states[0].circuitBreaker.metrics.numberOfFailedCalls.assert().isEqualTo(0)
+        lb.states[0].circuitBreaker.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)
     }
 
     @Test

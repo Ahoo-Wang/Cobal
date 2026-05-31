@@ -3,6 +3,7 @@ package me.ahoo.cobal.state
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import me.ahoo.cobal.DefaultNode
+import me.ahoo.cobal.error.AuthenticationError
 import me.ahoo.cobal.error.InvalidRequestError
 import me.ahoo.cobal.error.NetworkError
 import me.ahoo.test.asserts.assert
@@ -36,6 +37,17 @@ class CircuitBreakersTest {
 
         repeat(10) {
             cb.onError(0, cb.timestampUnit, InvalidRequestError("node-1", RuntimeException("bad request")))
+        }
+
+        cb.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)
+    }
+
+    @Test
+    fun `DEFAULT_CIRCUIT_BREAKER_CONFIG should ignore AuthenticationError`() {
+        val cb = defaultCircuitBreaker("node-1")
+
+        repeat(10) {
+            cb.onError(0, cb.timestampUnit, AuthenticationError("node-1", RuntimeException("auth failed")))
         }
 
         cb.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)

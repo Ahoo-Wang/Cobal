@@ -6,6 +6,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.cobal.dsl.loadBalancer
 import me.ahoo.cobal.error.AllNodesUnavailableError
+import me.ahoo.cobal.error.AuthenticationError
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
@@ -90,6 +91,28 @@ class LoadBalancedChatModelTest {
         StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
             .expectNext(response)
             .verifyComplete()
+    }
+
+    @Test
+    fun `stream should propagate AuthenticationError immediately without retry`() {
+        val model1 = mockk<ChatModel>()
+        val model2 = mockk<ChatModel>(relaxed = true)
+        every { model1.stream(any<Prompt>()) } returns Flux.error(RuntimeException("HTTP 401 Unauthorized"))
+
+        val lb = loadBalancer<ChatModel>("test-lb") {
+            roundRobin()
+            node("node-1") { model(model1) }
+            node("node-2") { model(model2) }
+        }
+        val balancedModel = LoadBalancedChatModel(lb)
+
+        StepVerifier.create(balancedModel.stream(mockk<Prompt>()))
+            .expectError(AuthenticationError::class.java)
+            .verify()
+
+        verify(exactly = 0) { model2.stream(any<Prompt>()) }
+        lb.states[0].circuitBreaker.metrics.numberOfFailedCalls.assert().isEqualTo(0)
+        lb.states[0].circuitBreaker.state.assert().isEqualTo(CircuitBreaker.State.CLOSED)
     }
 
     @Test

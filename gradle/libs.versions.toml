@@ -7,7 +7,7 @@ resilience4j = "2.4.0"
 # Test
 mockk = "1.14.11"
 junit = "6.0.3"
-fluent-assert = "0.2.6"
+fluent-assert = "0.2.8"
 
 # Plugins
 kotlin = "2.3.20"

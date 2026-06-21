@@ -10,7 +10,7 @@ junit = "6.0.3"
 fluent-assert = "0.2.8"
 
 # Plugins
-kotlin = "2.3.20"
+kotlin = "2.4.0"
 dokka = "2.2.0"
 detekt = "1.23.8"
 publish-plugin = "2.0.0"

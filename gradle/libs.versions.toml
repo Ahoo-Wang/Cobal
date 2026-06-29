@@ -6,7 +6,7 @@ langchain4j = "1.13.0"
 resilience4j = "2.4.0"
 # Test
 mockk = "1.14.11"
-junit = "6.0.3"
+junit = "6.1.1"
 fluent-assert = "0.2.8"
 
 # Plugins

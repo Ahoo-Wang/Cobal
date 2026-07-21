@@ -1,7 +1,7 @@
 [versions]
 # Libs
 reactor = "3.8.6"
-spring-ai-model = "1.1.4"
+spring-ai-model = "1.1.8"
 langchain4j = "1.18.0"
 resilience4j = "2.4.0"
 # Test

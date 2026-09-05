@@ -2,7 +2,7 @@
 # Libs
 reactor = "3.8.7"
 spring-ai-model = "2.0.1"
-langchain4j = "1.19.0"
+langchain4j = "1.20.0"
 resilience4j = "2.4.0"
 # Test
 mockk = "1.14.11"

@@ -1,6 +1,6 @@
 [versions]
 # Libs
-reactor = "3.8.7"
+reactor = "3.8.8"
 spring-ai-model = "2.0.1"
 langchain4j = "1.22.0"
 resilience4j = "2.4.0"
